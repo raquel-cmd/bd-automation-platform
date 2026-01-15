@@ -6,6 +6,14 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002';
 
+// Debug logging - remove after testing
+console.log('🔧 API Configuration:', {
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  API_BASE_URL,
+  mode: import.meta.env.MODE,
+  prod: import.meta.env.PROD
+});
+
 /**
  * Generic fetch wrapper with error handling
  */
