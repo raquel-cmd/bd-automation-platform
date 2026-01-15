@@ -16,6 +16,28 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'BD Automation Platform API is running' });
 });
 
+// Login endpoint
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  
+  // Simple demo authentication
+  if (username === 'admin' && password === 'password') {
+    res.json({
+      success: true,
+      user: {
+        username: 'admin',
+        name: 'Admin User'
+      },
+      token: 'demo-token-' + Date.now()
+    });
+  } else {
+    res.status(401).json({
+      success: false,
+      message: 'Invalid username or password'
+    });
+  }
+});
+
 // API endpoints
 app.get('/api/dashboard', (req, res) => {
   // Mock data for now
