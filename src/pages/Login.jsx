@@ -96,9 +96,14 @@ export default function Login() {
 
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 text-center">
-              Demo Credentials: admin / password
+            <p className="text-xs font-medium text-gray-600 mb-2">
+              Demo Credentials:
             </p>
+            <div className="space-y-1 text-xs text-gray-500">
+              <p>• Admin: <span className="font-mono">admin / password</span></p>
+              <p>• User: <span className="font-mono">demo / demo</span></p>
+              <p>• Viewer: <span className="font-mono">viewer / viewer</span></p>
+            </div>
           </div>
         </div>
 
