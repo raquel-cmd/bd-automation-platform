@@ -1,9 +1,10 @@
 /**
  * API utility functions for BestReviews BD Platform
- * Backend API: http://localhost:5002
+ * Backend API: Uses VITE_API_URL environment variable in production
+ * Falls back to http://localhost:5002 in development
  */
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002';
 
 /**
  * Generic fetch wrapper with error handling
@@ -43,7 +44,7 @@ async function fetchAPI(endpoint, options = {}) {
  */
 export const auth = {
   login: async (username, password) => {
-    return fetchAPI('/auth/login', {
+    return fetchAPI('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
@@ -64,15 +65,15 @@ export const auth = {
  */
 export const dashboard = {
   getOverview: async () => {
-    return fetchAPI('/dashboard/overview');
+    return fetchAPI('/api/dashboard/overview');
   },
 
   getPlatformPerformance: async () => {
-    return fetchAPI('/dashboard/platform-performance');
+    return fetchAPI('/api/dashboard/platform-performance');
   },
 
   getBrandsByPlatform: async (platform) => {
-    return fetchAPI(`/dashboard/brands/${platform}`);
+    return fetchAPI(`/api/dashboard/brands/${platform}`);
   },
 };
 
@@ -81,15 +82,15 @@ export const dashboard = {
  */
 export const insights = {
   getTrends: async () => {
-    return fetchAPI('/insights/trends');
+    return fetchAPI('/api/insights/trends');
   },
 
   getTopBrands: async () => {
-    return fetchAPI('/insights/top-brands');
+    return fetchAPI('/api/insights/top-brands');
   },
 
   getTopProducts: async () => {
-    return fetchAPI('/insights/top-products');
+    return fetchAPI('/api/insights/top-products');
   },
 };
 
@@ -104,7 +105,7 @@ export const admin = {
 
     const token = localStorage.getItem('token');
 
-    const response = await fetch(`${API_BASE_URL}/admin/upload`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/upload`, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -120,7 +121,7 @@ export const admin = {
   },
 
   getUploadHistory: async () => {
-    return fetchAPI('/admin/upload-history');
+    return fetchAPI('/api/admin/upload-history');
   },
 };
 
@@ -129,25 +130,25 @@ export const admin = {
  */
 export const proposals = {
   getAll: async () => {
-    return fetchAPI('/proposals');
+    return fetchAPI('/api/proposals');
   },
 
   create: async (proposal) => {
-    return fetchAPI('/proposals', {
+    return fetchAPI('/api/proposals', {
       method: 'POST',
       body: JSON.stringify(proposal),
     });
   },
 
   update: async (id, proposal) => {
-    return fetchAPI(`/proposals/${id}`, {
+    return fetchAPI(`/api/proposals/${id}`, {
       method: 'PUT',
       body: JSON.stringify(proposal),
     });
   },
 
   delete: async (id) => {
-    return fetchAPI(`/proposals/${id}`, {
+    return fetchAPI(`/api/proposals/${id}`, {
       method: 'DELETE',
     });
   },
