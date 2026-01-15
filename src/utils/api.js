@@ -1,15 +1,33 @@
 /**
  * API utility functions for BestReviews BD Platform
- * Backend API: http://localhost:5002
+ * Backend API: Uses VITE_API_URL environment variable in production
+ * Falls back to http://localhost:5002 in development
  */
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002';
+
+// Debug logging - remove after testing
+console.log('🔧 API Configuration:', {
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  API_BASE_URL,
+  mode: import.meta.env.MODE,
+  prod: import.meta.env.PROD
+});
 
 /**
  * Generic fetch wrapper with error handling
  */
 async function fetchAPI(endpoint, options = {}) {
   const token = localStorage.getItem('token');
+  const fullURL = `${API_BASE_URL}${endpoint}`;
+
+  // Debug logging - shows exact URL being called
+  console.log('📡 API Request:', {
+    endpoint,
+    fullURL,
+    method: options.method || 'GET',
+    hasToken: !!token
+  });
 
   const defaultOptions = {
     headers: {
@@ -18,24 +36,40 @@ async function fetchAPI(endpoint, options = {}) {
     },
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...defaultOptions,
-    ...options,
-    headers: {
-      ...defaultOptions.headers,
-      ...options.headers,
-    },
-  });
+  try {
+    const response = await fetch(fullURL, {
+      ...defaultOptions,
+      ...options,
+      headers: {
+        ...defaultOptions.headers,
+        ...options.headers,
+      },
+    });
 
-  if (!response.ok) {
-    if (response.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+    console.log('📥 API Response:', {
+      url: fullURL,
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
+      throw new Error(`API Error: ${response.statusText}`);
     }
-    throw new Error(`API Error: ${response.statusText}`);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    console.error('❌ API Error:', {
+      url: fullURL,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
 }
 
 /**
@@ -43,7 +77,7 @@ async function fetchAPI(endpoint, options = {}) {
  */
 export const auth = {
   login: async (username, password) => {
-    return fetchAPI('/login', {
+    return fetchAPI('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
@@ -64,15 +98,15 @@ export const auth = {
  */
 export const dashboard = {
   getOverview: async () => {
-    return fetchAPI('/dashboard/overview');
+    return fetchAPI('/api/dashboard/overview');
   },
 
   getPlatformPerformance: async () => {
-    return fetchAPI('/dashboard/platform-performance');
+    return fetchAPI('/api/dashboard/platform-performance');
   },
 
   getBrandsByPlatform: async (platform) => {
-    return fetchAPI(`/dashboard/brands/${platform}`);
+    return fetchAPI(`/api/dashboard/brands/${platform}`);
   },
 };
 
@@ -81,15 +115,15 @@ export const dashboard = {
  */
 export const insights = {
   getTrends: async () => {
-    return fetchAPI('/insights/trends');
+    return fetchAPI('/api/insights/trends');
   },
 
   getTopBrands: async () => {
-    return fetchAPI('/insights/top-brands');
+    return fetchAPI('/api/insights/top-brands');
   },
 
   getTopProducts: async () => {
-    return fetchAPI('/insights/top-products');
+    return fetchAPI('/api/insights/top-products');
   },
 };
 
@@ -104,7 +138,7 @@ export const admin = {
 
     const token = localStorage.getItem('token');
 
-    const response = await fetch(`${API_BASE_URL}/admin/upload`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/upload`, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -120,7 +154,7 @@ export const admin = {
   },
 
   getUploadHistory: async () => {
-    return fetchAPI('/admin/upload-history');
+    return fetchAPI('/api/admin/upload-history');
   },
 };
 
@@ -129,25 +163,25 @@ export const admin = {
  */
 export const proposals = {
   getAll: async () => {
-    return fetchAPI('/proposals');
+    return fetchAPI('/api/proposals');
   },
 
   create: async (proposal) => {
-    return fetchAPI('/proposals', {
+    return fetchAPI('/api/proposals', {
       method: 'POST',
       body: JSON.stringify(proposal),
     });
   },
 
   update: async (id, proposal) => {
-    return fetchAPI(`/proposals/${id}`, {
+    return fetchAPI(`/api/proposals/${id}`, {
       method: 'PUT',
       body: JSON.stringify(proposal),
     });
   },
 
   delete: async (id) => {
-    return fetchAPI(`/proposals/${id}`, {
+    return fetchAPI(`/api/proposals/${id}`, {
       method: 'DELETE',
     });
   },
