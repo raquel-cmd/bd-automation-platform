@@ -19,6 +19,15 @@ console.log('🔧 API Configuration:', {
  */
 async function fetchAPI(endpoint, options = {}) {
   const token = localStorage.getItem('token');
+  const fullURL = `${API_BASE_URL}${endpoint}`;
+
+  // Debug logging - shows exact URL being called
+  console.log('📡 API Request:', {
+    endpoint,
+    fullURL,
+    method: options.method || 'GET',
+    hasToken: !!token
+  });
 
   const defaultOptions = {
     headers: {
@@ -27,24 +36,40 @@ async function fetchAPI(endpoint, options = {}) {
     },
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...defaultOptions,
-    ...options,
-    headers: {
-      ...defaultOptions.headers,
-      ...options.headers,
-    },
-  });
+  try {
+    const response = await fetch(fullURL, {
+      ...defaultOptions,
+      ...options,
+      headers: {
+        ...defaultOptions.headers,
+        ...options.headers,
+      },
+    });
 
-  if (!response.ok) {
-    if (response.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+    console.log('📥 API Response:', {
+      url: fullURL,
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
+      throw new Error(`API Error: ${response.statusText}`);
     }
-    throw new Error(`API Error: ${response.statusText}`);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    console.error('❌ API Error:', {
+      url: fullURL,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
 }
 
 /**
