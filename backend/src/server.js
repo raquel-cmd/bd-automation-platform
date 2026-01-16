@@ -9,6 +9,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import brandsRoutes from './routes/brands.js';
 import transactionsRoutes from './routes/transactions.js';
 import insightsRoutes from './routes/insights.js';
+import skimlinksRoutes from './routes/skimlinks.js';
 
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -47,6 +48,7 @@ app.use('/api/dashboard', authenticateToken, dashboardRoutes);
 app.use('/api/brands', authenticateToken, brandsRoutes);
 app.use('/api/transactions', authenticateToken, transactionsRoutes);
 app.use('/api/insights', authenticateToken, insightsRoutes);
+app.use('/api/skimlinks', authenticateToken, skimlinksRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

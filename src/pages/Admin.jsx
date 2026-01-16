@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import Layout from '../components/Layout';
-import { admin } from '../utils/api';
+import { admin, skimlinks } from '../utils/api';
 import { formatDate } from '../utils/dateUtils';
 
 export default function Admin() {
+  // Skimlinks-specific state
+  const [skimlinksFile, setSkimlinksFile] = useState(null);
+  const [skimlinksMonth, setSkimlinksMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [skimlinksStatus, setSkimlinksStatus] = useState(null);
+  const [skimlinksLoading, setSkimlinksLoading] = useState(false);
+
+  // Original upload state
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedPlatform, setSelectedPlatform] = useState('Skimlinks');
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -24,7 +34,6 @@ export default function Admin() {
 
   const fetchUploadHistory = async () => {
     try {
-      // Mock data for demonstration
       const mockHistory = [
         {
           id: 1,
@@ -70,6 +79,74 @@ export default function Admin() {
     }
   };
 
+  // Skimlinks CSV upload handler
+  const handleSkimlinksFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.name.endsWith('.csv')) {
+      setSkimlinksFile(file);
+      setSkimlinksStatus(null);
+    } else {
+      setSkimlinksStatus({
+        type: 'error',
+        message: 'Please select a valid CSV file',
+      });
+    }
+  };
+
+  const handleSkimlinksUpload = async () => {
+    if (!skimlinksFile) {
+      setSkimlinksStatus({
+        type: 'error',
+        message: 'Please select a file first',
+      });
+      return;
+    }
+
+    setSkimlinksLoading(true);
+    setSkimlinksStatus({
+      type: 'processing',
+      message: 'Uploading and processing Skimlinks data...',
+    });
+
+    try {
+      // Read file as text
+      const csvContent = await skimlinksFile.text();
+
+      // Upload to backend
+      const response = await skimlinks.uploadCSV(csvContent, skimlinksMonth);
+
+      setSkimlinksStatus({
+        type: 'success',
+        message: response.message || `Successfully uploaded ${response.count} merchants for ${response.month}`,
+      });
+
+      // Clear file
+      setSkimlinksFile(null);
+      document.getElementById('skimlinks-file-upload').value = '';
+
+      // Add to history
+      const newRecord = {
+        id: uploadHistory.length + 1,
+        filename: skimlinksFile.name,
+        platform: 'Skimlinks',
+        uploadDate: new Date(),
+        status: 'success',
+        recordsProcessed: response.count,
+        uploadedBy: 'admin',
+      };
+      setUploadHistory([newRecord, ...uploadHistory]);
+
+    } catch (error) {
+      setSkimlinksStatus({
+        type: 'error',
+        message: `Upload failed: ${error.message}`,
+      });
+    } finally {
+      setSkimlinksLoading(false);
+    }
+  };
+
+  // Original upload handlers
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file && file.name.endsWith('.csv')) {
@@ -99,10 +176,8 @@ export default function Admin() {
     });
 
     try {
-      // Simulate upload delay
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // Mock successful upload
       const newRecord = {
         id: uploadHistory.length + 1,
         filename: selectedFile.name,
@@ -167,11 +242,94 @@ export default function Admin() {
           </p>
         </div>
 
-        {/* Upload Section */}
+        {/* Skimlinks Upload Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center mb-6">
             <Upload className="w-5 h-5 text-blue-600 mr-2" />
-            <h3 className="text-lg font-semibold text-gray-900">Upload CSV File</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Skimlinks Brand Performance Upload</h3>
+          </div>
+
+          <div className="space-y-4">
+            {/* Month Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Month
+              </label>
+              <input
+                type="month"
+                value={skimlinksMonth}
+                onChange={(e) => setSkimlinksMonth(e.target.value)}
+                className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* File Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Skimlinks Publisher Report CSV
+              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex-1 cursor-pointer">
+                  <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
+                    <FileText className="w-5 h-5 text-gray-400 mr-2" />
+                    <span className="text-sm text-gray-600">
+                      {skimlinksFile ? skimlinksFile.name : 'Choose Skimlinks CSV file'}
+                    </span>
+                  </div>
+                  <input
+                    id="skimlinks-file-upload"
+                    type="file"
+                    accept=".csv"
+                    onChange={handleSkimlinksFileChange}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  onClick={handleSkimlinksUpload}
+                  disabled={!skimlinksFile || skimlinksLoading}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {skimlinksLoading ? 'Uploading...' : 'Upload'}
+                </button>
+              </div>
+            </div>
+
+            {/* Status Message */}
+            {skimlinksStatus && (
+              <div
+                className={`p-4 rounded-lg border flex items-start ${getStatusBgColor(
+                  skimlinksStatus.type
+                )}`}
+              >
+                <div className="mr-3 mt-0.5">
+                  {getStatusIcon(skimlinksStatus.type)}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{skimlinksStatus.message}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Instructions */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                Skimlinks CSV Format:
+              </h4>
+              <ul className="text-xs text-blue-800 space-y-1">
+                <li>• Export the "Publisher Report" from Skimlinks</li>
+                <li>• Required columns: Merchant, Clicks, Sales, Conversion rate, Order value, Revenue, EPC</li>
+                <li>• Select the month above before uploading</li>
+                <li>• The system will automatically parse and store brand performance data</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* General Upload Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center mb-6">
+            <Upload className="w-5 h-5 text-blue-600 mr-2" />
+            <h3 className="text-lg font-semibold text-gray-900">General CSV Upload</h3>
           </div>
 
           <div className="space-y-4">

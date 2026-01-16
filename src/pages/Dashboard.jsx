@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
 import Layout from '../components/Layout';
-import { dashboard } from '../utils/api';
+import { dashboard, skimlinks } from '../utils/api';
 import {
   formatCurrency,
   formatPercentage,
@@ -20,9 +20,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [monthSummary, setMonthSummary] = useState(null);
 
+  // Skimlinks state
+  const [skimlinksMonth, setSkimlinksMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [skimlinksData, setSkimlinksData] = useState(null);
+  const [skimlinksLoading, setSkimlinksLoading] = useState(false);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    fetchSkimlinksData();
+  }, [skimlinksMonth]);
 
   const fetchDashboardData = async () => {
     try {
@@ -202,6 +214,19 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setLoading(false);
+    }
+  };
+
+  const fetchSkimlinksData = async () => {
+    try {
+      setSkimlinksLoading(true);
+      const data = await skimlinks.getMerchants(skimlinksMonth);
+      setSkimlinksData(data);
+      setSkimlinksLoading(false);
+    } catch (error) {
+      console.error('Error fetching Skimlinks data:', error);
+      setSkimlinksData(null);
+      setSkimlinksLoading(false);
     }
   };
 
@@ -452,6 +477,88 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Skimlinks Brand Performance */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Skimlinks – Brand Performance
+            </h3>
+            <input
+              type="month"
+              value={skimlinksMonth}
+              onChange={(e) => setSkimlinksMonth(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {skimlinksLoading ? (
+            <div className="p-8 text-center text-gray-500">
+              Loading Skimlinks data...
+            </div>
+          ) : skimlinksData && skimlinksData.merchants && skimlinksData.merchants.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Brand
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      GMV
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Revenue
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Clicks
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Sales
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Conv. Rate
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      EPC
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {skimlinksData.merchants.map((merchant, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {merchant.merchant}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                        {formatCurrency(merchant.gmv)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
+                        {formatCurrency(merchant.revenue)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
+                        {merchant.clicks?.toLocaleString() || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
+                        {merchant.sales?.toLocaleString() || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
+                        {merchant.conversionRate != null ? `${merchant.conversionRate.toFixed(2)}%` : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
+                        {merchant.epc != null ? `$${merchant.epc.toFixed(2)}` : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              No data available for {skimlinksMonth}. Upload a Skimlinks CSV in the Admin panel.
+            </div>
+          )}
         </div>
 
         {/* Formula Reference */}

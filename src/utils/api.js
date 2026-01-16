@@ -159,6 +159,26 @@ export const admin = {
 };
 
 /**
+ * Skimlinks functions
+ */
+export const skimlinks = {
+  uploadCSV: async (csvContent, month) => {
+    return fetchAPI('/api/skimlinks/upload', {
+      method: 'POST',
+      body: JSON.stringify({ csvContent, month }),
+    });
+  },
+
+  getMerchants: async (month) => {
+    return fetchAPI(`/api/skimlinks/merchants?month=${month}`);
+  },
+
+  getAvailableMonths: async () => {
+    return fetchAPI('/api/skimlinks/months');
+  },
+};
+
+/**
  * Proposals
  */
 export const proposals = {
