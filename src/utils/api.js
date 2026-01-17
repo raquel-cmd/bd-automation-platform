@@ -6,28 +6,12 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002';
 
-// Debug logging - remove after testing
-console.log('🔧 API Configuration:', {
-  VITE_API_URL: import.meta.env.VITE_API_URL,
-  API_BASE_URL,
-  mode: import.meta.env.MODE,
-  prod: import.meta.env.PROD
-});
-
 /**
  * Generic fetch wrapper with error handling
  */
 async function fetchAPI(endpoint, options = {}) {
   const token = localStorage.getItem('token');
   const fullURL = `${API_BASE_URL}${endpoint}`;
-
-  // Debug logging - shows exact URL being called
-  console.log('📡 API Request:', {
-    endpoint,
-    fullURL,
-    method: options.method || 'GET',
-    hasToken: !!token
-  });
 
   const defaultOptions = {
     headers: {
@@ -44,13 +28,6 @@ async function fetchAPI(endpoint, options = {}) {
         ...defaultOptions.headers,
         ...options.headers,
       },
-    });
-
-    console.log('📥 API Response:', {
-      url: fullURL,
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
     });
 
     if (!response.ok) {
