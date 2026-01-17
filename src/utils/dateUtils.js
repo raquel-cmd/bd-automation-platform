@@ -148,3 +148,65 @@ export function formatDateRange(startDate, endDate) {
 export function getMonthName(date = new Date()) {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
+
+/**
+ * Get the start date of a finance week N weeks ago
+ * @param {number} weeksAgo - Number of weeks back (0 = current week)
+ */
+export function getWeekStart(weeksAgo = 0) {
+  const currentWeekStart = getCurrentWeekStart();
+  const targetWeek = new Date(currentWeekStart);
+  targetWeek.setDate(currentWeekStart.getDate() - (weeksAgo * 7));
+  return targetWeek;
+}
+
+/**
+ * Get the end date of a finance week N weeks ago
+ * @param {number} weeksAgo - Number of weeks back (0 = current week)
+ */
+export function getWeekEnd(weeksAgo = 0) {
+  const weekStart = getWeekStart(weeksAgo);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+  return weekEnd;
+}
+
+/**
+ * Get an array of the last N finance weeks
+ * @param {number} count - Number of weeks to retrieve
+ * @returns {Array} Array of week objects with start, end, and label
+ */
+export function getLastNWeeks(count = 5) {
+  const weeks = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const start = getWeekStart(i);
+    const end = getWeekEnd(i);
+    weeks.push({
+      start,
+      end,
+      label: formatWeekLabel(start, end),
+      weeksAgo: i
+    });
+  }
+  return weeks;
+}
+
+/**
+ * Format a week label (e.g., "Dec 26 - Jan 1" or "Jan 2-8")
+ */
+export function formatWeekLabel(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
+  const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
+  const startDay = start.getDate();
+  const endDay = end.getDate();
+
+  if (startMonth === endMonth) {
+    return `${startMonth} ${startDay}-${endDay}`;
+  } else {
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+  }
+}

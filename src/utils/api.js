@@ -106,7 +106,11 @@ export const dashboard = {
   },
 
   getBrandsByPlatform: async (platform) => {
-    return fetchAPI(`/api/dashboard/brands/${platform}`);
+    return fetchAPI(`/api/brands?platform=${encodeURIComponent(platform)}`);
+  },
+
+  getWeeklyRevenue: async () => {
+    return fetchAPI('/api/dashboard/weekly-revenue');
   },
 };
 
@@ -184,5 +188,14 @@ export const proposals = {
     return fetchAPI(`/api/proposals/${id}`, {
       method: 'DELETE',
     });
+  },
+};
+
+/**
+ * Skimlinks data
+ */
+export const skimlinks = {
+  getMerchants: async (month) => {
+    return fetchAPI(`/api/skimlinks/merchants?month=${encodeURIComponent(month)}`);
   },
 };

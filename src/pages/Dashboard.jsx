@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
 import Layout from '../components/Layout';
-import { dashboard } from '../utils/api';
+import { dashboard, skimlinks } from '../utils/api';
 import {
   formatCurrency,
   formatPercentage,
@@ -12,6 +12,8 @@ import {
   formatDateRange,
   getCurrentWeekStart,
   getCurrentWeekEnd,
+  getLastNWeeks,
+  formatWeekLabel,
 } from '../utils/dateUtils';
 
 export default function Dashboard() {
@@ -19,10 +21,77 @@ export default function Dashboard() {
   const [expandedPlatforms, setExpandedPlatforms] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [monthSummary, setMonthSummary] = useState(null);
+  const [weeklyData, setWeeklyData] = useState([]);
+  const [platformBrands, setPlatformBrands] = useState({});
+  const [loadingBrands, setLoadingBrands] = useState({});
+  const [skimlinksData, setSkimlinksData] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (selectedMonth) {
+      fetchSkimlinksData();
+    }
+  }, [selectedMonth]);
+
+  const fetchSkimlinksData = async () => {
+    try {
+      // Try to fetch from API, fall back to mock data if it fails
+      try {
+        const data = await skimlinks.getMerchants(selectedMonth);
+        setSkimlinksData(data.merchants || []);
+      } catch (error) {
+        console.log('Using mock Skimlinks data');
+        // Mock data for Skimlinks
+        setSkimlinksData([
+          { name: 'Amazon', revenue: 85000, clicks: 12500, conversions: 450 },
+          { name: 'Walmart', revenue: 62000, clicks: 9800, conversions: 320 },
+          { name: 'Target', revenue: 53000, clicks: 8200, conversions: 280 },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching Skimlinks data:', error);
+    }
+  };
+
+  const fetchBrandsForPlatform = async (platformName) => {
+    if (platformBrands[platformName]) {
+      return; // Already fetched
+    }
+
+    setLoadingBrands(prev => ({ ...prev, [platformName]: true }));
+
+    try {
+      // Try to fetch from API first
+      try {
+        const data = await dashboard.getBrandsByPlatform(platformName);
+        setPlatformBrands(prev => ({
+          ...prev,
+          [platformName]: data.brands || []
+        }));
+      } catch (error) {
+        console.log('Using mock brand data for', platformName);
+        // Fall back to mock data from the platform
+        const platform = platformData.find(p => p.name === platformName);
+        if (platform && platform.brandDetails) {
+          setPlatformBrands(prev => ({
+            ...prev,
+            [platformName]: platform.brandDetails
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching brands:', error);
+    } finally {
+      setLoadingBrands(prev => ({ ...prev, [platformName]: false }));
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -198,6 +267,30 @@ export default function Dashboard() {
         daysInMonth: getDaysInMonth(),
       });
 
+      // Fetch weekly revenue data (mock for now)
+      try {
+        const weeklyResponse = await dashboard.getWeeklyRevenue();
+        setWeeklyData(weeklyResponse.weeklyData || []);
+      } catch (error) {
+        console.log('Using mock weekly data');
+        // Generate mock weekly data
+        const weeks = getLastNWeeks(5);
+        const mockWeekly = platformsWithPacing.map(platform => {
+          const weekRevenues = weeks.map((week, idx) => {
+            // Simulate decreasing revenue for older weeks
+            const baseRevenue = platform.weekRevenue;
+            const variance = 0.8 + Math.random() * 0.4;
+            return Math.floor(baseRevenue * variance);
+          });
+
+          return {
+            platform: platform.name,
+            weeks: weekRevenues
+          };
+        });
+        setWeeklyData(mockWeekly);
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -205,12 +298,14 @@ export default function Dashboard() {
     }
   };
 
-  const togglePlatform = (platformName) => {
+  const togglePlatform = async (platformName) => {
     const newExpanded = new Set(expandedPlatforms);
     if (newExpanded.has(platformName)) {
       newExpanded.delete(platformName);
     } else {
       newExpanded.add(platformName);
+      // Fetch brands when expanding
+      await fetchBrandsForPlatform(platformName);
     }
     setExpandedPlatforms(newExpanded);
   };
@@ -225,6 +320,31 @@ export default function Dashboard() {
     if (pacing >= 100) return 'bg-green-50';
     if (pacing >= 90) return 'bg-yellow-50';
     return 'bg-red-50';
+  };
+
+  const getProgressBarColor = (pacing) => {
+    if (pacing >= 100) return 'bg-green-500';
+    if (pacing >= 90) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const calculateWoWGrowth = (current, previous) => {
+    if (!previous || previous === 0) return 0;
+    return ((current - previous) / previous) * 100;
+  };
+
+  const ProgressBar = ({ value, max, className = '' }) => {
+    const percentage = Math.min((value / max) * 100, 100);
+    const color = getProgressBarColor((value / max) * 100);
+
+    return (
+      <div className={`w-full bg-gray-200 rounded-full h-2 ${className}`}>
+        <div
+          className={`${color} h-2 rounded-full transition-all duration-300`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    );
   };
 
   if (loading) {
@@ -266,13 +386,18 @@ export default function Dashboard() {
         {monthSummary && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-              <div className="text-sm text-gray-500">MTD Revenue</div>
+              <div className="text-sm text-gray-500">MTD Revenue vs Target</div>
               <div className="text-2xl font-bold text-gray-900 mt-1">
-                {formatCurrency(monthSummary.totalRevenue)}
+                {formatCurrency(monthSummary.totalRevenue)} / {formatCurrency(monthSummary.totalTarget)}
               </div>
-              <div className="text-xs text-gray-400 mt-1">
-                Target: {formatCurrency(monthSummary.totalTarget)}
+              <div className={`text-lg font-semibold mt-1 ${getPacingColor(monthSummary.overallPacing)}`}>
+                {formatPercentage(monthSummary.overallPacing, 1)}
               </div>
+              <ProgressBar
+                value={monthSummary.totalRevenue}
+                max={monthSummary.totalTarget}
+                className="mt-2"
+              />
             </div>
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
               <div className="text-sm text-gray-500">MTD GMV</div>
@@ -291,6 +416,77 @@ export default function Dashboard() {
               <div className="text-2xl font-bold text-gray-900 mt-1">
                 {monthSummary.totalBrands}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Week-on-Week Revenue Table */}
+        {weeklyData.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Weekly Revenue by Platform
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Finance weeks run Thursday to Wednesday
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Platform
+                    </th>
+                    {getLastNWeeks(5).map((week, idx) => (
+                      <th
+                        key={idx}
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        <div>{week.label}</div>
+                        {idx > 0 && <div className="text-xs text-gray-400">WoW %</div>}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {weeklyData.map((platformWeekly) => {
+                    const weeks = platformWeekly.weeks || [];
+                    return (
+                      <tr key={platformWeekly.platform} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                          {platformWeekly.platform}
+                        </td>
+                        {weeks.map((revenue, idx) => {
+                          const previousRevenue = idx > 0 ? weeks[idx - 1] : null;
+                          const wowGrowth = previousRevenue
+                            ? calculateWoWGrowth(revenue, previousRevenue)
+                            : null;
+
+                          return (
+                            <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
+                              <div className="font-semibold text-gray-900">
+                                {formatCurrency(revenue)}
+                              </div>
+                              {wowGrowth !== null && (
+                                <div
+                                  className={`text-xs font-medium ${
+                                    wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                  }`}
+                                >
+                                  {wowGrowth >= 0 ? '+' : ''}
+                                  {formatPercentage(wowGrowth, 1)}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -362,8 +558,8 @@ export default function Dashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
                         {formatCurrency(platform.target)}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-right font-semibold ${getPacingColor(platform.pacing)}`}>
-                        <div className={`inline-flex items-center px-2 py-1 rounded ${getPacingBgColor(platform.pacing)}`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className={`inline-flex items-center px-2 py-1 rounded ${getPacingBgColor(platform.pacing)} font-semibold ${getPacingColor(platform.pacing)}`}>
                           {platform.pacing >= 100 ? (
                             <TrendingUp className="w-4 h-4 mr-1" />
                           ) : (
@@ -371,6 +567,11 @@ export default function Dashboard() {
                           )}
                           {formatPercentage(platform.pacing, 1)}
                         </div>
+                        <ProgressBar
+                          value={platform.mtdRevenue}
+                          max={platform.target}
+                          className="mt-1"
+                        />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
                         {formatCurrency(platform.weekRevenue)}
@@ -386,69 +587,158 @@ export default function Dashboard() {
                     {/* Expanded Brand Details */}
                     {expandedPlatforms.has(platform.name) && (
                       <>
-                        {/* Brand Header Row */}
-                        <tr className="bg-gray-50">
-                          <th className="px-6 py-2 pl-12 text-left text-xs font-medium text-gray-500 uppercase">
-                            Brand
-                          </th>
-                          <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            Revenue
-                          </th>
-                          <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            GMV
-                          </th>
-                          <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            -
-                          </th>
-                          <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            Pacing
-                          </th>
-                          <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            -
-                          </th>
-                          <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            Transactions
-                          </th>
-                          <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            -
-                          </th>
-                        </tr>
-                        {/* Brand Rows */}
-                        {platform.brandDetails.map((brand) => (
-                          <tr
-                            key={brand.name}
-                            className="bg-gray-50 hover:bg-gray-100 transition-colors"
-                          >
-                            <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
-                              {brand.name}
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-700">
-                              {formatCurrency(brand.revenue)}
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                              {brand.gmv > 0 ? formatCurrency(brand.gmv) : '-'}
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                              -
-                            </td>
-                            <td className={`px-6 py-3 whitespace-nowrap text-right text-sm font-medium ${getPacingColor(brand.pacing)}`}>
-                              {formatPercentage(brand.pacing, 1)}
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                              -
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                              {brand.transactions}
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                              -
+                        {loadingBrands[platform.name] ? (
+                          <tr className="bg-gray-50">
+                            <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
+                              Loading brands...
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          <>
+                            {/* Brand Header Row */}
+                            <tr className="bg-gray-50">
+                              <th className="px-6 py-2 pl-12 text-left text-xs font-medium text-gray-500 uppercase">
+                                Brand
+                              </th>
+                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                Revenue
+                              </th>
+                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                GMV
+                              </th>
+                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                -
+                              </th>
+                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                -
+                              </th>
+                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                -
+                              </th>
+                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                Transactions
+                              </th>
+                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                -
+                              </th>
+                            </tr>
+                            {/* Brand Rows */}
+                            {(platformBrands[platform.name] || platform.brandDetails || []).map((brand) => (
+                              <tr
+                                key={brand.name}
+                                className="bg-gray-50 hover:bg-gray-100 transition-colors"
+                              >
+                                <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
+                                  {brand.name}
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-700">
+                                  {formatCurrency(brand.revenue)}
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                  {brand.gmv > 0 ? formatCurrency(brand.gmv) : '-'}
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                  -
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                  -
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                  -
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                  {brand.transactions}
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                  -
+                                </td>
+                              </tr>
+                            ))}
+                          </>
+                        )}
                       </>
                     )}
                   </React.Fragment>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Skimlinks Brand Performance */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Skimlinks Brand Performance
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Top performing merchants by revenue
+                </p>
+              </div>
+              <div>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Merchant
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Revenue
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Clicks
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Conversions
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Conversion Rate
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {skimlinksData.length > 0 ? (
+                  skimlinksData.map((merchant) => (
+                    <tr key={merchant.name} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                        {merchant.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-gray-900">
+                        {formatCurrency(merchant.revenue)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
+                        {merchant.clicks?.toLocaleString() || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
+                        {merchant.conversions?.toLocaleString() || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
+                        {merchant.clicks && merchant.conversions
+                          ? formatPercentage((merchant.conversions / merchant.clicks) * 100, 2)
+                          : '-'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-sm text-gray-500">
+                      No Skimlinks data available for this month
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
