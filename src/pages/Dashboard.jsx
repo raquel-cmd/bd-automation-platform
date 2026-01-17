@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import Layout from '../components/Layout';
-import { dashboard, skimlinks } from '../utils/api';
+import { dashboard } from '../utils/api';
 import {
   formatCurrency,
   formatPercentage,
@@ -19,17 +19,9 @@ import {
 
 export default function Dashboard() {
   const [platformData, setPlatformData] = useState([]);
-  const [expandedPlatforms, setExpandedPlatforms] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [monthSummary, setMonthSummary] = useState(null);
   const [weeklyData, setWeeklyData] = useState([]);
-  const [platformBrands, setPlatformBrands] = useState({});
-  const [loadingBrands, setLoadingBrands] = useState({});
-  const [skimlinksData, setSkimlinksData] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
   const [weekRangeStart, setWeekRangeStart] = useState(4); // 4 weeks ago
   const [weekRangeEnd, setWeekRangeEnd] = useState(0); // current week
 
@@ -38,70 +30,11 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (selectedMonth) {
-      fetchSkimlinksData();
-    }
-  }, [selectedMonth]);
-
-  useEffect(() => {
     // Regenerate weekly data when week range changes
     if (platformData.length > 0) {
       generateWeeklyData();
     }
   }, [weekRangeStart, weekRangeEnd, platformData.length]);
-
-  const fetchSkimlinksData = async () => {
-    try {
-      // Try to fetch from API, fall back to mock data if it fails
-      try {
-        const data = await skimlinks.getMerchants(selectedMonth);
-        setSkimlinksData(data.merchants || []);
-      } catch (error) {
-        console.log('Using mock Skimlinks data');
-        // Mock data for Skimlinks
-        setSkimlinksData([
-          { name: 'Amazon', revenue: 85000, clicks: 12500, conversions: 450 },
-          { name: 'Walmart', revenue: 62000, clicks: 9800, conversions: 320 },
-          { name: 'Target', revenue: 53000, clicks: 8200, conversions: 280 },
-        ]);
-      }
-    } catch (error) {
-      console.error('Error fetching Skimlinks data:', error);
-    }
-  };
-
-  const fetchBrandsForPlatform = async (platformName) => {
-    if (platformBrands[platformName]) {
-      return; // Already fetched
-    }
-
-    setLoadingBrands(prev => ({ ...prev, [platformName]: true }));
-
-    try {
-      // Try to fetch from API first
-      try {
-        const data = await dashboard.getBrandsByPlatform(platformName);
-        setPlatformBrands(prev => ({
-          ...prev,
-          [platformName]: data.brands || []
-        }));
-      } catch (error) {
-        console.log('Using mock brand data for', platformName);
-        // Fall back to mock data from the platform
-        const platform = platformData.find(p => p.name === platformName);
-        if (platform && platform.brandDetails) {
-          setPlatformBrands(prev => ({
-            ...prev,
-            [platformName]: platform.brandDetails
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching brands:', error);
-    } finally {
-      setLoadingBrands(prev => ({ ...prev, [platformName]: false }));
-    }
-  };
 
   const generateWeeklyData = () => {
     if (platformData.length === 0) return;
@@ -340,18 +273,6 @@ export default function Dashboard() {
       console.error('Error fetching dashboard data:', error);
       setLoading(false);
     }
-  };
-
-  const togglePlatform = async (platformName) => {
-    const newExpanded = new Set(expandedPlatforms);
-    if (newExpanded.has(platformName)) {
-      newExpanded.delete(platformName);
-    } else {
-      newExpanded.add(platformName);
-      // Fetch brands when expanding
-      await fetchBrandsForPlatform(platformName);
-    }
-    setExpandedPlatforms(newExpanded);
   };
 
   const getPacingColor = (pacing) => {
@@ -715,259 +636,6 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-
-        {/* Platform Performance Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Platform Performance
-            </h3>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Platform
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    MTD Revenue
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    MTD GMV
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Target
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pacing
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Week Revenue
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Transactions
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Brands
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {platformData.map((platform) => (
-                  <React.Fragment key={platform.name}>
-                    {/* Platform Row */}
-                    <tr
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => togglePlatform(platform.name)}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {expandedPlatforms.has(platform.name) ? (
-                            <ChevronDown className="w-4 h-4 text-gray-400 mr-2" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-400 mr-2" />
-                          )}
-                          <span className="font-medium text-gray-900">
-                            {platform.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-gray-900">
-                        {formatCurrency(platform.mtdRevenue)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                        {platform.mtdGMV > 0 ? formatCurrency(platform.mtdGMV) : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                        {formatCurrency(platform.target)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className={`inline-flex items-center px-2 py-1 rounded ${getPacingBgColor(platform.pacing)} font-semibold ${getPacingColor(platform.pacing)}`}>
-                          {platform.pacing >= 100 ? (
-                            <TrendingUp className="w-4 h-4 mr-1" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4 mr-1" />
-                          )}
-                          {formatPercentage(platform.pacing, 1)}
-                        </div>
-                        <ProgressBar
-                          value={platform.mtdRevenue}
-                          max={platform.target}
-                          className="mt-1"
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                        {formatCurrency(platform.weekRevenue)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                        {platform.transactions.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                        {platform.brands}
-                      </td>
-                    </tr>
-
-                    {/* Expanded Brand Details */}
-                    {expandedPlatforms.has(platform.name) && (
-                      <>
-                        {loadingBrands[platform.name] ? (
-                          <tr className="bg-gray-50">
-                            <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
-                              Loading brands...
-                            </td>
-                          </tr>
-                        ) : (
-                          <>
-                            {/* Brand Header Row */}
-                            <tr className="bg-gray-50">
-                              <th className="px-6 py-2 pl-12 text-left text-xs font-medium text-gray-500 uppercase">
-                                Brand
-                              </th>
-                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                Revenue
-                              </th>
-                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                GMV
-                              </th>
-                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                -
-                              </th>
-                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                -
-                              </th>
-                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                -
-                              </th>
-                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                Transactions
-                              </th>
-                              <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                -
-                              </th>
-                            </tr>
-                            {/* Brand Rows */}
-                            {(platformBrands[platform.name] || platform.brandDetails || []).map((brand) => (
-                              <tr
-                                key={brand.name}
-                                className="bg-gray-50 hover:bg-gray-100 transition-colors"
-                              >
-                                <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
-                                  {brand.name}
-                                </td>
-                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-700">
-                                  {formatCurrency(brand.revenue)}
-                                </td>
-                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                  {brand.gmv > 0 ? formatCurrency(brand.gmv) : '-'}
-                                </td>
-                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                  -
-                                </td>
-                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                  -
-                                </td>
-                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                  -
-                                </td>
-                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                  {brand.transactions}
-                                </td>
-                                <td className="px-6 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                  -
-                                </td>
-                              </tr>
-                            ))}
-                          </>
-                        )}
-                      </>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Skimlinks Brand Performance */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Skimlinks Brand Performance
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Top performing merchants by revenue
-                </p>
-              </div>
-              <div>
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Merchant
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Revenue
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Clicks
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Conversions
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Conversion Rate
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {skimlinksData.length > 0 ? (
-                  skimlinksData.map((merchant) => (
-                    <tr key={merchant.name} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                        {merchant.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-gray-900">
-                        {formatCurrency(merchant.revenue)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                        {merchant.clicks?.toLocaleString() || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                        {merchant.conversions?.toLocaleString() || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                        {merchant.clicks && merchant.conversions
-                          ? formatPercentage((merchant.conversions / merchant.clicks) * 100, 2)
-                          : '-'}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-sm text-gray-500">
-                      No Skimlinks data available for this month
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
         {/* Formula Reference */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
