@@ -393,8 +393,8 @@ export default function Dashboard() {
 
         {/* Summary Cards */}
         {monthSummary && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="max-w-md">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <div className="text-sm text-gray-500">MTD Revenue vs Target</div>
               <div className="text-2xl font-bold text-gray-900 mt-1">
                 {formatCurrency(monthSummary.totalRevenue)} / {formatCurrency(monthSummary.totalTarget)}
@@ -407,24 +407,6 @@ export default function Dashboard() {
                 max={monthSummary.totalTarget}
                 className="mt-2"
               />
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-              <div className="text-sm text-gray-500">MTD GMV</div>
-              <div className="text-2xl font-bold text-gray-900 mt-1">
-                {formatCurrency(monthSummary.totalGMV)}
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-              <div className="text-sm text-gray-500">Transactions</div>
-              <div className="text-2xl font-bold text-gray-900 mt-1">
-                {monthSummary.totalTransactions.toLocaleString()}
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-              <div className="text-sm text-gray-500">Active Brands</div>
-              <div className="text-2xl font-bold text-gray-900 mt-1">
-                {monthSummary.totalBrands}
-              </div>
             </div>
           </div>
         )}
