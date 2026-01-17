@@ -193,6 +193,31 @@ export function getLastNWeeks(count = 5) {
 }
 
 /**
+ * Get an array of finance weeks in a range
+ * @param {number} startWeeksAgo - Number of weeks back for start of range
+ * @param {number} endWeeksAgo - Number of weeks back for end of range (0 = current week)
+ * @returns {Array} Array of week objects with start, end, and label
+ */
+export function getWeekRange(startWeeksAgo, endWeeksAgo) {
+  const weeks = [];
+  // Ensure start is greater than or equal to end (start is further back in time)
+  const start = Math.max(startWeeksAgo, endWeeksAgo);
+  const end = Math.min(startWeeksAgo, endWeeksAgo);
+
+  for (let i = start; i >= end; i--) {
+    const weekStart = getWeekStart(i);
+    const weekEnd = getWeekEnd(i);
+    weeks.push({
+      start: weekStart,
+      end: weekEnd,
+      label: formatWeekLabel(weekStart, weekEnd),
+      weeksAgo: i
+    });
+  }
+  return weeks;
+}
+
+/**
  * Format a week label (e.g., "Dec 26 - Jan 1" or "Jan 2-8")
  */
 export function formatWeekLabel(startDate, endDate) {
