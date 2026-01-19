@@ -25,6 +25,8 @@ export default function Dashboard() {
   const [weekRangeStart, setWeekRangeStart] = useState(4); // 4 weeks ago
   const [weekRangeEnd, setWeekRangeEnd] = useState(0); // current week
 
+  // Force refresh - updated layout with 3 sections: Revenue Card, Weekly Revenue (categorized), Top Brands
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
