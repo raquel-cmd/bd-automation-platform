@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
 import Layout from '../components/Layout';
 import { dashboard } from '../utils/api';
 import {
@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [weeklyData, setWeeklyData] = useState([]);
   const [weekRangeStart, setWeekRangeStart] = useState(4); // 4 weeks ago
   const [weekRangeEnd, setWeekRangeEnd] = useState(0); // current week
+  const [showOtherAffiliateDetails, setShowOtherAffiliateDetails] = useState(false);
+  const [showFlatFeeDetails, setShowFlatFeeDetails] = useState(false);
 
   // Force refresh - updated layout with 3 sections: Revenue Card, Weekly Revenue (categorized), Top Brands
 
@@ -37,6 +39,12 @@ export default function Dashboard() {
       generateWeeklyData();
     }
   }, [weekRangeStart, weekRangeEnd, platformData.length]);
+
+  // Normalize platform names
+  const normalizePlatformName = (name) => {
+    if (name.toLowerCase() === 'skimbit') return 'Skimlinks';
+    return name;
+  };
 
   const generateWeeklyData = () => {
     if (platformData.length === 0) return;
@@ -52,6 +60,7 @@ export default function Dashboard() {
 
       return {
         platform: platform.name,
+        category: platform.category,
         weeks: weekRevenues
       };
     });
@@ -162,7 +171,7 @@ export default function Dashboard() {
               { name: 'Vitamix', revenue: 2000, gmv: 50000, transactions: 5, target: 2500, weekRevenue: 470 },
             ],
           },
-          // Affiliate Platforms
+          // Affiliate Partners (specific named platforms)
           {
             name: 'Skimlinks',
             mtdRevenue: 200000,
@@ -198,6 +207,95 @@ export default function Dashboard() {
               { name: 'eBay', revenue: 12000, gmv: 240000, transactions: 15, target: 13000, weekRevenue: 2800 },
               { name: 'Rakuten', revenue: 6000, gmv: 120000, transactions: 7, target: 7000, weekRevenue: 1400 },
             ],
+          },
+          {
+            name: 'Howl',
+            mtdRevenue: 42000,
+            mtdGMV: 840000,
+            target: 45000,
+            weekRevenue: 9800,
+            weekGMV: 196000,
+            transactions: 68,
+            brands: 24,
+            category: 'affiliate',
+            brandDetails: [],
+          },
+          {
+            name: 'BrandAds',
+            mtdRevenue: 38000,
+            mtdGMV: 760000,
+            target: 40000,
+            weekRevenue: 8900,
+            weekGMV: 178000,
+            transactions: 54,
+            brands: 19,
+            category: 'affiliate',
+            brandDetails: [],
+          },
+          {
+            name: 'Skimbit',
+            mtdRevenue: 15000,
+            mtdGMV: 300000,
+            target: 18000,
+            weekRevenue: 3500,
+            weekGMV: 70000,
+            transactions: 22,
+            brands: 8,
+            category: 'affiliate',
+            brandDetails: [],
+          },
+          // "Other" affiliates that will be aggregated
+          {
+            name: 'Awin',
+            mtdRevenue: 28000,
+            mtdGMV: 560000,
+            target: 30000,
+            weekRevenue: 6500,
+            weekGMV: 130000,
+            transactions: 42,
+            brands: 15,
+            category: 'affiliate',
+            isOtherAffiliate: true,
+            brandDetails: [],
+          },
+          {
+            name: 'Partnerize',
+            mtdRevenue: 22000,
+            mtdGMV: 440000,
+            target: 25000,
+            weekRevenue: 5100,
+            weekGMV: 102000,
+            transactions: 33,
+            brands: 12,
+            category: 'affiliate',
+            isOtherAffiliate: true,
+            brandDetails: [],
+          },
+          {
+            name: 'Connexity',
+            mtdRevenue: 18000,
+            mtdGMV: 360000,
+            target: 20000,
+            weekRevenue: 4200,
+            weekGMV: 84000,
+            transactions: 27,
+            brands: 9,
+            category: 'affiliate',
+            isOtherAffiliate: true,
+            brandDetails: [],
+          },
+          {
+            name: 'Apple',
+            mtdRevenue: 12000,
+            mtdGMV: 240000,
+            target: 15000,
+            weekRevenue: 2800,
+            weekGMV: 56000,
+            transactions: 18,
+            brands: 6,
+            category: 'affiliate',
+            isOtherAffiliate: true,
+            brandDetails: [],
           },
           // Flat Fee Partnerships
           {
@@ -235,8 +333,31 @@ export default function Dashboard() {
         ],
       };
 
+      // Normalize platform names (Skimbit -> Skimlinks)
+      const normalizedPlatforms = mockData.platforms.map(platform => ({
+        ...platform,
+        name: normalizePlatformName(platform.name)
+      }));
+
+      // Merge Skimbit into Skimlinks if both exist
+      const mergedPlatforms = normalizedPlatforms.reduce((acc, platform) => {
+        const existing = acc.find(p => p.name === platform.name && p.category === platform.category);
+        if (existing) {
+          // Merge the data
+          existing.mtdRevenue += platform.mtdRevenue;
+          existing.mtdGMV += platform.mtdGMV;
+          existing.target += platform.target;
+          existing.weekRevenue += platform.weekRevenue;
+          existing.transactions += platform.transactions;
+          existing.brands += platform.brands;
+        } else {
+          acc.push({ ...platform });
+        }
+        return acc;
+      }, []);
+
       // Calculate pacing for each platform
-      const platformsWithPacing = mockData.platforms.map((platform) => ({
+      const platformsWithPacing = mergedPlatforms.map((platform) => ({
         ...platform,
         pacing: calculatePacing(platform.mtdRevenue, platform.target),
       }));
@@ -321,10 +442,72 @@ export default function Dashboard() {
   const getCategoryLabel = (category) => {
     const labels = {
       'attribution': 'Attribution Partners',
-      'affiliate': 'Affiliate Platforms',
+      'affiliate': 'Affiliate Partners', // Changed from "Affiliate Platforms"
       'flatfee': 'Flat Fee Partnerships'
     };
     return labels[category] || category;
+  };
+
+  // Helper to aggregate affiliate "Other" platforms
+  const getAffiliateWeeklyData = () => {
+    const affiliateData = weeklyData.filter(pw => {
+      const platform = platformData.find(p => p.name === pw.platform);
+      return platform?.category === 'affiliate';
+    });
+
+    const namedAffiliates = ['Skimlinks', 'Impact', 'Howl', 'BrandAds', 'Skimbit'];
+    const named = affiliateData.filter(pw => namedAffiliates.includes(pw.platform));
+    const other = affiliateData.filter(pw => !namedAffiliates.includes(pw.platform));
+
+    // Aggregate "Other" platforms
+    let otherAggregate = null;
+    if (other.length > 0) {
+      const numWeeks = other[0]?.weeks?.length || 0;
+      const aggregatedWeeks = Array(numWeeks).fill(0);
+
+      other.forEach(pw => {
+        pw.weeks.forEach((revenue, idx) => {
+          aggregatedWeeks[idx] += revenue;
+        });
+      });
+
+      otherAggregate = {
+        platform: 'Other',
+        category: 'affiliate',
+        weeks: aggregatedWeeks,
+        isAggregate: true,
+        details: other
+      };
+    }
+
+    return { named, otherAggregate };
+  };
+
+  // Helper to aggregate flat fee platforms
+  const getFlatFeeWeeklyData = () => {
+    const flatFeeData = weeklyData.filter(pw => {
+      const platform = platformData.find(p => p.name === pw.platform);
+      return platform?.category === 'flatfee';
+    });
+
+    if (flatFeeData.length === 0) return null;
+
+    const numWeeks = flatFeeData[0]?.weeks?.length || 0;
+    const aggregatedWeeks = Array(numWeeks).fill(0);
+
+    flatFeeData.forEach(pw => {
+      pw.weeks.forEach((revenue, idx) => {
+        aggregatedWeeks[idx] += revenue;
+      });
+    });
+
+    return {
+      platform: 'Flat Fee Deals',
+      category: 'flatfee',
+      weeks: aggregatedWeeks,
+      isAggregate: true,
+      details: flatFeeData
+    };
   };
 
   const ProgressBar = ({ value, max, className = '' }) => {
@@ -351,19 +534,16 @@ export default function Dashboard() {
     );
   }
 
+  // Get weeks for display (reversed - newest first)
+  const weeks = getWeekRange(weekRangeStart, weekRangeEnd);
+  const displayWeeks = [...weeks].reverse();
+
   return (
     <Layout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              Enhanced Dashboard
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {getMonthName()} • {formatDateRange(getCurrentWeekStart(), getCurrentWeekEnd())}
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Enhanced Dashboard</h1>
           {monthSummary && (
             <div className="text-right">
               <div className="text-sm text-gray-500">
@@ -471,7 +651,7 @@ export default function Dashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Platform
                     </th>
-                    {getWeekRange(weekRangeStart, weekRangeEnd).map((week, idx) => (
+                    {displayWeeks.map((week, idx) => (
                       <th
                         key={idx}
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -483,34 +663,34 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {['attribution', 'affiliate', 'flatfee'].map((category) => {
+                  {/* Attribution Partners */}
+                  {(() => {
                     const categoryPlatforms = weeklyData.filter(pw => {
                       const platform = platformData.find(p => p.name === pw.platform);
-                      return platform?.category === category;
+                      return platform?.category === 'attribution';
                     });
 
                     if (categoryPlatforms.length === 0) return null;
 
                     return (
-                      <React.Fragment key={category}>
-                        {/* Category Header Row */}
+                      <React.Fragment key="attribution">
                         <tr className="bg-gray-100">
-                          <td colSpan={getWeekRange(weekRangeStart, weekRangeEnd).length + 1} className="px-6 py-2">
+                          <td colSpan={displayWeeks.length + 1} className="px-6 py-2">
                             <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                              {getCategoryLabel(category)}
+                              {getCategoryLabel('attribution')}
                             </div>
                           </td>
                         </tr>
-                        {/* Platform Rows */}
                         {categoryPlatforms.map((platformWeekly) => {
                           const weeks = platformWeekly.weeks || [];
+                          const reversedWeeks = [...weeks].reverse();
                           return (
                             <tr key={platformWeekly.platform} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                                 {platformWeekly.platform}
                               </td>
-                              {weeks.map((revenue, idx) => {
-                                const previousRevenue = idx > 0 ? weeks[idx - 1] : null;
+                              {reversedWeeks.map((revenue, idx) => {
+                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
                                 const wowGrowth = previousRevenue
                                   ? calculateWoWGrowth(revenue, previousRevenue)
                                   : null;
@@ -538,7 +718,234 @@ export default function Dashboard() {
                         })}
                       </React.Fragment>
                     );
-                  })}
+                  })()}
+
+                  {/* Affiliate Partners */}
+                  {(() => {
+                    const { named, otherAggregate } = getAffiliateWeeklyData();
+                    if (named.length === 0 && !otherAggregate) return null;
+
+                    return (
+                      <React.Fragment key="affiliate">
+                        <tr className="bg-gray-100">
+                          <td colSpan={displayWeeks.length + 1} className="px-6 py-2">
+                            <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                              {getCategoryLabel('affiliate')}
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Named affiliate platforms */}
+                        {named.map((platformWeekly) => {
+                          const weeks = platformWeekly.weeks || [];
+                          const reversedWeeks = [...weeks].reverse();
+                          return (
+                            <tr key={platformWeekly.platform} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                {platformWeekly.platform}
+                              </td>
+                              {reversedWeeks.map((revenue, idx) => {
+                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                const wowGrowth = previousRevenue
+                                  ? calculateWoWGrowth(revenue, previousRevenue)
+                                  : null;
+
+                                return (
+                                  <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
+                                    <div className="font-semibold text-gray-900">
+                                      {formatCurrency(revenue)}
+                                    </div>
+                                    {wowGrowth !== null && (
+                                      <div
+                                        className={`text-xs font-medium ${
+                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                        }`}
+                                      >
+                                        {wowGrowth >= 0 ? '+' : ''}
+                                        {formatPercentage(wowGrowth, 1)}
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                        {/* "Other" aggregate row */}
+                        {otherAggregate && (
+                          <>
+                            <tr
+                              className="hover:bg-gray-50 cursor-pointer"
+                              onClick={() => setShowOtherAffiliateDetails(!showOtherAffiliateDetails)}
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                <div className="flex items-center">
+                                  {showOtherAffiliateDetails ? (
+                                    <ChevronDown className="w-4 h-4 mr-2" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 mr-2" />
+                                  )}
+                                  Other
+                                </div>
+                              </td>
+                              {[...otherAggregate.weeks].reverse().map((revenue, idx) => {
+                                const reversedWeeks = [...otherAggregate.weeks].reverse();
+                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                const wowGrowth = previousRevenue
+                                  ? calculateWoWGrowth(revenue, previousRevenue)
+                                  : null;
+
+                                return (
+                                  <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
+                                    <div className="font-semibold text-gray-900">
+                                      {formatCurrency(revenue)}
+                                    </div>
+                                    {wowGrowth !== null && (
+                                      <div
+                                        className={`text-xs font-medium ${
+                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                        }`}
+                                      >
+                                        {wowGrowth >= 0 ? '+' : ''}
+                                        {formatPercentage(wowGrowth, 1)}
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                            {/* Expandable "Other" details */}
+                            {showOtherAffiliateDetails && otherAggregate.details.map((detail) => {
+                              const reversedWeeks = [...detail.weeks].reverse();
+                              return (
+                                <tr key={detail.platform} className="bg-gray-50 hover:bg-gray-100">
+                                  <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
+                                    {detail.platform}
+                                  </td>
+                                  {reversedWeeks.map((revenue, idx) => {
+                                    const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                    const wowGrowth = previousRevenue
+                                      ? calculateWoWGrowth(revenue, previousRevenue)
+                                      : null;
+
+                                    return (
+                                      <td key={idx} className="px-6 py-3 whitespace-nowrap text-right text-sm">
+                                        <div className="font-semibold text-gray-700">
+                                          {formatCurrency(revenue)}
+                                        </div>
+                                        {wowGrowth !== null && (
+                                          <div
+                                            className={`text-xs font-medium ${
+                                              wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                            }`}
+                                          >
+                                            {wowGrowth >= 0 ? '+' : ''}
+                                            {formatPercentage(wowGrowth, 1)}
+                                          </div>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </>
+                        )}
+                      </React.Fragment>
+                    );
+                  })()}
+
+                  {/* Flat Fee Partnerships (single aggregated row) */}
+                  {(() => {
+                    const flatFeeAggregate = getFlatFeeWeeklyData();
+                    if (!flatFeeAggregate) return null;
+
+                    return (
+                      <React.Fragment key="flatfee">
+                        <tr className="bg-gray-100">
+                          <td colSpan={displayWeeks.length + 1} className="px-6 py-2">
+                            <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                              {getCategoryLabel('flatfee')}
+                            </div>
+                          </td>
+                        </tr>
+                        <tr
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => setShowFlatFeeDetails(!showFlatFeeDetails)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                            <div className="flex items-center">
+                              {showFlatFeeDetails ? (
+                                <ChevronDown className="w-4 h-4 mr-2" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 mr-2" />
+                              )}
+                              Flat Fee Deals
+                            </div>
+                          </td>
+                          {[...flatFeeAggregate.weeks].reverse().map((revenue, idx) => {
+                            const reversedWeeks = [...flatFeeAggregate.weeks].reverse();
+                            const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                            const wowGrowth = previousRevenue
+                              ? calculateWoWGrowth(revenue, previousRevenue)
+                              : null;
+
+                            return (
+                              <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
+                                <div className="font-semibold text-gray-900">
+                                  {formatCurrency(revenue)}
+                                </div>
+                                {wowGrowth !== null && (
+                                  <div
+                                    className={`text-xs font-medium ${
+                                      wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                    }`}
+                                  >
+                                    {wowGrowth >= 0 ? '+' : ''}
+                                    {formatPercentage(wowGrowth, 1)}
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        {/* Expandable flat fee details */}
+                        {showFlatFeeDetails && flatFeeAggregate.details.map((detail) => {
+                          const reversedWeeks = [...detail.weeks].reverse();
+                          return (
+                            <tr key={detail.platform} className="bg-gray-50 hover:bg-gray-100">
+                              <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
+                                {detail.platform}
+                              </td>
+                              {reversedWeeks.map((revenue, idx) => {
+                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                const wowGrowth = previousRevenue
+                                  ? calculateWoWGrowth(revenue, previousRevenue)
+                                  : null;
+
+                                return (
+                                  <td key={idx} className="px-6 py-3 whitespace-nowrap text-right text-sm">
+                                    <div className="font-semibold text-gray-700">
+                                      {formatCurrency(revenue)}
+                                    </div>
+                                    {wowGrowth !== null && (
+                                      <div
+                                        className={`text-xs font-medium ${
+                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                        }`}
+                                      >
+                                        {wowGrowth >= 0 ? '+' : ''}
+                                        {formatPercentage(wowGrowth, 1)}
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>
