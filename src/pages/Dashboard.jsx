@@ -384,9 +384,14 @@ export default function Dashboard() {
               <div className="text-2xl font-bold text-gray-900 mt-1">
                 {formatCurrency(monthSummary.totalRevenue)} / {formatCurrency(monthSummary.totalTarget)}
               </div>
-              <div className={`text-lg font-semibold mt-1 ${getPacingColor(monthSummary.overallPacing)}`}>
-                {formatPercentage(monthSummary.overallPacing, 1)}
-              </div>
+              {(() => {
+                const achievementPct = (monthSummary.totalRevenue / monthSummary.totalTarget) * 100;
+                return (
+                  <div className={`text-lg font-semibold mt-1 ${getPacingColor(achievementPct)}`}>
+                    {formatPercentage(achievementPct, 1)}
+                  </div>
+                );
+              })()}
               <ProgressBar
                 value={monthSummary.totalRevenue}
                 max={monthSummary.totalTarget}
