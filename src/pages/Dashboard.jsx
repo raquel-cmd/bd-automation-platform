@@ -429,14 +429,45 @@ export default function Dashboard() {
     const brands = platform.brandDetails || [];
     const limit = platform.name === 'Creator Connections' ? 10 : 5;
 
+    const daysAccounted = getDaysAccounted();
+    const daysInMonth = getDaysInMonth();
+    const daysLeft = daysInMonth - daysAccounted;
+
     // Sort by MTD revenue descending and take top N
     return brands
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, limit)
-      .map(brand => ({
-        ...brand,
-        pacing: brand.target ? calculatePacing(brand.revenue, brand.target) : null
-      }));
+      .map(brand => {
+        // Map old fields to new structure
+        const mtdRevenue = brand.revenue;
+        const mtdGmv = brand.gmv;
+        const targetGmv = brand.target || 0;
+        const weeklyRevenue = brand.weekRevenue || 0;
+
+        // Stub totalContractRevenue as 2.5x the target (typical contract structure)
+        const totalContractRevenue = targetGmv * 2.5;
+
+        // Calculate % to Target
+        const pctToTarget = targetGmv > 0 ? (mtdGmv / targetGmv) * 100 : 0;
+
+        // Calculate new pacing formula: ((mtdGmv / daysAccounted) * daysLeft / targetGmv) * 100
+        const pacingPct = (targetGmv > 0 && daysAccounted > 0)
+          ? ((mtdGmv / daysAccounted) * daysLeft / targetGmv) * 100
+          : 0;
+
+        return {
+          brand: brand.name,
+          weeklyRevenue,
+          mtdRevenue,
+          totalContractRevenue,
+          mtdGmv,
+          targetGmv,
+          pctToTarget,
+          daysLeft,
+          pacingPct,
+          daysAccounted
+        };
+      });
   };
 
   const getCategoryLabel = (category) => {
@@ -998,42 +1029,60 @@ export default function Dashboard() {
                                       Brand
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                      Weekly Revenue
+                                    </th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                                       MTD Revenue
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      MTD GMV
+                                      Total Contract Revenue
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Target
+                                      GMV to Date
+                                    </th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                      Target GMV
+                                    </th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                      % to Target
+                                    </th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                      # days left
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                                       Pacing %
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Week Revenue
                                     </th>
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
                                   {topBrands.map((brand, idx) => (
-                                    <tr key={`${platform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
+                                    <tr key={`${platform.name}-${brand.brand}-${idx}`} className="hover:bg-gray-50">
                                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {brand.name}
+                                        {brand.brand}
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                        {formatCurrency(brand.weeklyRevenue)}
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
-                                        {formatCurrency(brand.revenue)}
+                                        {formatCurrency(brand.mtdRevenue)}
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.gmv > 0 ? formatCurrency(brand.gmv) : '—'}
+                                        {formatCurrency(brand.totalContractRevenue)}
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.target ? formatCurrency(brand.target) : '—'}
-                                      </td>
-                                      <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${brand.pacing ? getPacingColor(brand.pacing) : 'text-gray-400'}`}>
-                                        {brand.pacing ? formatPercentage(brand.pacing, 1) : '—'}
+                                        {brand.mtdGmv > 0 ? formatCurrency(brand.mtdGmv) : '—'}
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.weekRevenue ? formatCurrency(brand.weekRevenue) : '—'}
+                                        {brand.targetGmv > 0 ? formatCurrency(brand.targetGmv) : '—'}
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                        {brand.pctToTarget.toFixed(1)}%
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                        {brand.daysLeft}
+                                      </td>
+                                      <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPacingColor(brand.pacingPct)}`}>
+                                        {brand.pacingPct.toFixed(1)}%
                                       </td>
                                     </tr>
                                   ))}
@@ -1054,7 +1103,7 @@ export default function Dashboard() {
         {/* Formula Reference */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="text-sm text-blue-800">
-            <strong>Pacing Formula:</strong> (MTD Revenue ÷ Days Accounted) × Days in Month ÷ Target × 100
+            <strong>Brand Pacing Formula:</strong> ((GMV to Date ÷ Days Accounted) × Days Left ÷ Target GMV) × 100
           </div>
           <div className="text-xs text-blue-600 mt-1">
             Finance Cycle: Weeks run Thursday to Wednesday
