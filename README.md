@@ -122,3 +122,14 @@ The platform follows a Thursday-to-Wednesday finance week cycle. All date calcul
 ## License
 
 © 2025 BestReviews. All rights reserved.
+
+## Latest Updates
+
+- ✅ Dashboard UI improvements deployed (Jan 21, 2026)
+  - MTD Revenue now shows '% of goal' instead of pacing %
+  - Weekly Revenue table reorganized with reversed week order
+  - Platform Performance table columns reordered
+  - New Flat Fee Performance section added
+  - CSV upload functionality for data management
+
+**Status**: Dashboard enhancements are now live in production
