@@ -46,350 +46,115 @@ export default function Dashboard() {
     return name;
   };
 
-  const generateWeeklyData = () => {
+  const generateWeeklyData = async () => {
     if (platformData.length === 0) return;
 
-    const weeks = getWeekRange(weekRangeStart, weekRangeEnd);
-    const mockWeekly = platformData.map(platform => {
-      const weekRevenues = weeks.map((week, idx) => {
-        // Simulate decreasing revenue for older weeks
-        const baseRevenue = platform.weekRevenue || platform.mtdRevenue / 4;
-        const variance = 0.8 + Math.random() * 0.4;
-        return Math.floor(baseRevenue * variance);
+    try {
+      const weeks = getWeekRange(weekRangeStart, weekRangeEnd);
+      if (weeks.length === 0) return;
+
+      // Get start and end dates for API call
+      const fromWeek = weeks[weeks.length - 1].start.toISOString().split('T')[0];
+      const toWeek = weeks[0].end.toISOString().split('T')[0];
+
+      // Fetch real weekly revenue data from API
+      const response = await dashboard.getWeeklyRevenue(fromWeek, toWeek);
+
+      if (!response.success || !response.data) {
+        console.error('Failed to fetch weekly revenue data');
+        return;
+      }
+
+      // Transform API data to match component structure
+      const weeklyDataFormatted = response.data.map(weeklyPlatformData => {
+        // Create a map of dates to revenues
+        const revenueByDate = {};
+        weeklyPlatformData.weekRevenues.forEach(wr => {
+          revenueByDate[wr.date] = wr.revenue;
+        });
+
+        // Map weeks to revenues in correct order
+        const weekRevenues = weeks.map(week => {
+          const weekStart = week.start.toISOString().split('T')[0];
+          return revenueByDate[weekStart] || 0;
+        });
+
+        // Find platform category from state platformData
+        const platformName = weeklyPlatformData.platform;
+        const platformInfo = platformData.find(p => p.name === platformName);
+        const category = platformInfo?.category || 'unknown';
+
+        return {
+          platform: weeklyPlatformData.platform,
+          category: category,
+          weeks: weekRevenues,
+        };
       });
 
-      return {
-        platform: platform.name,
-        category: platform.category,
-        weeks: weekRevenues
-      };
-    });
-    setWeeklyData(mockWeekly);
+      setWeeklyData(weeklyDataFormatted);
+    } catch (error) {
+      console.error('Error generating weekly data:', error);
+    }
   };
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
 
-      // Mock data for demonstration (replace with real API calls)
-      const mockData = {
-        platforms: [
-          // Attribution Partners
-          {
-            name: 'Creator Connections',
-            mtdRevenue: 225000,
-            mtdGMV: 5625000,
-            target: 225000,
-            weekRevenue: 52000,
-            weekGMV: 1300000,
-            transactions: 412,
-            brands: 124,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'Samsung', revenue: 78000, gmv: 1950000, transactions: 145, target: 75000, weekRevenue: 18000 },
-              { name: 'LG', revenue: 68000, gmv: 1700000, transactions: 132, target: 70000, weekRevenue: 15500 },
-              { name: 'Sony', revenue: 79000, gmv: 1975000, transactions: 135, target: 72000, weekRevenue: 18500 },
-              { name: 'Panasonic', revenue: 45000, gmv: 1125000, transactions: 89, target: 48000, weekRevenue: 10200 },
-              { name: 'Philips', revenue: 38000, gmv: 950000, transactions: 76, target: 40000, weekRevenue: 8800 },
-              { name: 'Bose', revenue: 35000, gmv: 875000, transactions: 68, target: 38000, weekRevenue: 8100 },
-              { name: 'JBL', revenue: 32000, gmv: 800000, transactions: 62, target: 35000, weekRevenue: 7400 },
-              { name: 'Canon', revenue: 28000, gmv: 700000, transactions: 54, target: 30000, weekRevenue: 6500 },
-              { name: 'Nikon', revenue: 25000, gmv: 625000, transactions: 48, target: 28000, weekRevenue: 5800 },
-              { name: 'GoPro', revenue: 22000, gmv: 550000, transactions: 42, target: 25000, weekRevenue: 5100 },
-              { name: 'DJI', revenue: 18000, gmv: 450000, transactions: 36, target: 20000, weekRevenue: 4200 },
-            ],
-          },
-          {
-            name: 'Levanta',
-            mtdRevenue: 145000,
-            mtdGMV: 3625000,
-            target: 150000,
-            weekRevenue: 34000,
-            weekGMV: 850000,
-            transactions: 268,
-            brands: 87,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'Apple', revenue: 52000, gmv: 1300000, transactions: 98, target: 55000, weekRevenue: 12000 },
-              { name: 'Microsoft', revenue: 38000, gmv: 950000, transactions: 72, target: 40000, weekRevenue: 8800 },
-              { name: 'Dell', revenue: 28000, gmv: 700000, transactions: 53, target: 30000, weekRevenue: 6500 },
-              { name: 'HP', revenue: 15000, gmv: 375000, transactions: 28, target: 16000, weekRevenue: 3500 },
-              { name: 'Lenovo', revenue: 12000, gmv: 300000, transactions: 17, target: 13000, weekRevenue: 2800 },
-            ],
-          },
-          {
-            name: 'Perch',
-            mtdRevenue: 98000,
-            mtdGMV: 2450000,
-            target: 105000,
-            weekRevenue: 23000,
-            weekGMV: 575000,
-            transactions: 182,
-            brands: 62,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'Dyson', revenue: 42000, gmv: 1050000, transactions: 78, target: 45000, weekRevenue: 9800 },
-              { name: 'Shark', revenue: 28000, gmv: 700000, transactions: 52, target: 30000, weekRevenue: 6500 },
-              { name: 'iRobot', revenue: 16000, gmv: 400000, transactions: 30, target: 18000, weekRevenue: 3700 },
-              { name: 'Bissell', revenue: 8000, gmv: 200000, transactions: 15, target: 9000, weekRevenue: 1900 },
-              { name: 'Hoover', revenue: 4000, gmv: 100000, transactions: 7, target: 5000, weekRevenue: 950 },
-            ],
-          },
-          {
-            name: 'PartnerBoost',
-            mtdRevenue: 76000,
-            mtdGMV: 1900000,
-            target: 80000,
-            weekRevenue: 18000,
-            weekGMV: 450000,
-            transactions: 142,
-            brands: 48,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'Nike', revenue: 32000, gmv: 800000, transactions: 60, target: 35000, weekRevenue: 7500 },
-              { name: 'Adidas', revenue: 24000, gmv: 600000, transactions: 45, target: 25000, weekRevenue: 5600 },
-              { name: 'Puma', revenue: 12000, gmv: 300000, transactions: 22, target: 13000, weekRevenue: 2800 },
-              { name: 'Under Armour', revenue: 5000, gmv: 125000, transactions: 9, target: 5500, weekRevenue: 1200 },
-              { name: 'New Balance', revenue: 3000, gmv: 75000, transactions: 6, target: 3500, weekRevenue: 700 },
-            ],
-          },
-          {
-            name: 'Archer',
-            mtdRevenue: 62000,
-            mtdGMV: 1550000,
-            target: 65000,
-            weekRevenue: 14500,
-            weekGMV: 362500,
-            transactions: 115,
-            brands: 39,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'KitchenAid', revenue: 28000, gmv: 700000, transactions: 52, target: 30000, weekRevenue: 6500 },
-              { name: 'Cuisinart', revenue: 18000, gmv: 450000, transactions: 33, target: 19000, weekRevenue: 4200 },
-              { name: 'Ninja', revenue: 10000, gmv: 250000, transactions: 18, target: 11000, weekRevenue: 2300 },
-              { name: 'Breville', revenue: 4000, gmv: 100000, transactions: 7, target: 4500, weekRevenue: 950 },
-              { name: 'Vitamix', revenue: 2000, gmv: 50000, transactions: 5, target: 2500, weekRevenue: 470 },
-            ],
-          },
-          // Affiliate Partners (specific named platforms)
-          {
-            name: 'Skimlinks',
-            mtdRevenue: 200000,
-            mtdGMV: 4000000,
-            target: 285000,
-            weekRevenue: 45000,
-            weekGMV: 900000,
-            transactions: 237,
-            brands: 79,
-            category: 'affiliate',
-            brandDetails: [
-              { name: 'Amazon', revenue: 85000, gmv: 1700000, transactions: 98, target: 120000, weekRevenue: 19800 },
-              { name: 'Walmart', revenue: 62000, gmv: 1240000, transactions: 67, target: 88000, weekRevenue: 14400 },
-              { name: 'Target', revenue: 53000, gmv: 1060000, transactions: 72, target: 75000, weekRevenue: 12300 },
-              { name: 'Best Buy', revenue: 35000, gmv: 700000, transactions: 42, target: 50000, weekRevenue: 8100 },
-              { name: 'Home Depot', revenue: 28000, gmv: 560000, transactions: 33, target: 40000, weekRevenue: 6500 },
-            ],
-          },
-          {
-            name: 'Impact',
-            mtdRevenue: 125000,
-            mtdGMV: 2500000,
-            target: 140000,
-            weekRevenue: 29000,
-            weekGMV: 580000,
-            transactions: 156,
-            brands: 52,
-            category: 'affiliate',
-            brandDetails: [
-              { name: 'Wayfair', revenue: 48000, gmv: 960000, transactions: 60, target: 55000, weekRevenue: 11200 },
-              { name: 'Overstock', revenue: 35000, gmv: 700000, transactions: 44, target: 40000, weekRevenue: 8100 },
-              { name: 'Etsy', revenue: 24000, gmv: 480000, transactions: 30, target: 27000, weekRevenue: 5600 },
-              { name: 'eBay', revenue: 12000, gmv: 240000, transactions: 15, target: 13000, weekRevenue: 2800 },
-              { name: 'Rakuten', revenue: 6000, gmv: 120000, transactions: 7, target: 7000, weekRevenue: 1400 },
-            ],
-          },
-          {
-            name: 'Howl',
-            mtdRevenue: 42000,
-            mtdGMV: 840000,
-            target: 45000,
-            weekRevenue: 9800,
-            weekGMV: 196000,
-            transactions: 68,
-            brands: 24,
-            category: 'affiliate',
-            brandDetails: [],
-          },
-          {
-            name: 'BrandAds',
-            mtdRevenue: 38000,
-            mtdGMV: 760000,
-            target: 40000,
-            weekRevenue: 8900,
-            weekGMV: 178000,
-            transactions: 54,
-            brands: 19,
-            category: 'affiliate',
-            brandDetails: [],
-          },
-          {
-            name: 'Skimbit',
-            mtdRevenue: 15000,
-            mtdGMV: 300000,
-            target: 18000,
-            weekRevenue: 3500,
-            weekGMV: 70000,
-            transactions: 22,
-            brands: 8,
-            category: 'affiliate',
-            brandDetails: [],
-          },
-          // "Other" affiliates that will be aggregated
-          {
-            name: 'Awin',
-            mtdRevenue: 28000,
-            mtdGMV: 560000,
-            target: 30000,
-            weekRevenue: 6500,
-            weekGMV: 130000,
-            transactions: 42,
-            brands: 15,
-            category: 'affiliate',
-            isOtherAffiliate: true,
-            brandDetails: [],
-          },
-          {
-            name: 'Partnerize',
-            mtdRevenue: 22000,
-            mtdGMV: 440000,
-            target: 25000,
-            weekRevenue: 5100,
-            weekGMV: 102000,
-            transactions: 33,
-            brands: 12,
-            category: 'affiliate',
-            isOtherAffiliate: true,
-            brandDetails: [],
-          },
-          {
-            name: 'Connexity',
-            mtdRevenue: 18000,
-            mtdGMV: 360000,
-            target: 20000,
-            weekRevenue: 4200,
-            weekGMV: 84000,
-            transactions: 27,
-            brands: 9,
-            category: 'affiliate',
-            isOtherAffiliate: true,
-            brandDetails: [],
-          },
-          {
-            name: 'Apple',
-            mtdRevenue: 12000,
-            mtdGMV: 240000,
-            target: 15000,
-            weekRevenue: 2800,
-            weekGMV: 56000,
-            transactions: 18,
-            brands: 6,
-            category: 'affiliate',
-            isOtherAffiliate: true,
-            brandDetails: [],
-          },
-          // Flat Fee Partnerships
-          {
-            name: 'Dyson',
-            mtdRevenue: 35000,
-            mtdGMV: 0,
-            target: 35000,
-            weekRevenue: 8750,
-            weekGMV: 0,
-            transactions: 1,
-            brands: 1,
-            category: 'flatfee',
-            brandDetails: [
-              { name: 'Dyson', revenue: 35000, gmv: 0, transactions: 1, target: 35000, weekRevenue: 8750 },
-            ],
-          },
-          {
-            name: 'Other Flat Fee',
-            mtdRevenue: 49000,
-            mtdGMV: 0,
-            target: 49417,
-            weekRevenue: 12000,
-            weekGMV: 0,
-            transactions: 8,
-            brands: 12,
-            category: 'flatfee',
-            brandDetails: [
-              { name: 'Samsung Sponsorship', revenue: 15000, gmv: 0, transactions: 1, target: 15000, weekRevenue: 3750 },
-              { name: 'LG Partnership', revenue: 18000, gmv: 0, transactions: 1, target: 18000, weekRevenue: 4500 },
-              { name: 'Sony Deal', revenue: 16000, gmv: 0, transactions: 1, target: 16417, weekRevenue: 4000 },
-              { name: 'Brand A', revenue: 8000, gmv: 0, transactions: 2, target: 8000, weekRevenue: 2000 },
-              { name: 'Brand B', revenue: 5000, gmv: 0, transactions: 3, target: 5000, weekRevenue: 1250 },
-            ],
-          },
-        ],
-      };
+      // Fetch real data from API
+      const overviewResponse = await dashboard.getOverview();
 
-      // Normalize platform names (Skimbit -> Skimlinks)
-      const normalizedPlatforms = mockData.platforms.map(platform => ({
-        ...platform,
-        name: normalizePlatformName(platform.name)
+      if (!overviewResponse || !overviewResponse.platforms) {
+        console.error('Failed to fetch dashboard overview');
+        setLoading(false);
+        return;
+      }
+
+      const {
+        platforms: rawPlatforms,
+        summary,
+        platformsByCategory,
+      } = overviewResponse;
+
+      // Normalize platform names and prepare data
+      const normalizedPlatforms = rawPlatforms.map(platform => ({
+        name: normalizePlatformName(platform.name),
+        mtdRevenue: platform.mtdRevenue || 0,
+        mtdGMV: platform.mtdGmv || 0,
+        target: platform.targetGmv || 0,
+        weekRevenue: platform.weeklyRevenue || 0,
+        weekGMV: 0, // Not currently tracked
+        transactions: 0, // Not currently tracked
+        brands: platform.brandCount || 0,
+        category: platform.category || 'attribution',
+        pacing: platform.pacing || 0,
+        brandDetails: (platform.brands || []).map(brand => ({
+          name: brand.brand,
+          revenue: brand.mtdRevenue,
+          gmv: brand.mtdGmv,
+          transactions: 0, // Not currently tracked
+          target: brand.targetGmv,
+          weekRevenue: brand.weeklyRevenue,
+          totalContractRevenue: brand.totalContractRevenue,
+          pctToTarget: brand.pctToTarget,
+          pacingPct: brand.pacingPct,
+          daysLeft: brand.daysLeft,
+        })),
       }));
 
-      // Merge Skimbit into Skimlinks if both exist
-      const mergedPlatforms = normalizedPlatforms.reduce((acc, platform) => {
-        const existing = acc.find(p => p.name === platform.name && p.category === platform.category);
-        if (existing) {
-          // Merge the data
-          existing.mtdRevenue += platform.mtdRevenue;
-          existing.mtdGMV += platform.mtdGMV;
-          existing.target += platform.target;
-          existing.weekRevenue += platform.weekRevenue;
-          existing.transactions += platform.transactions;
-          existing.brands += platform.brands;
-        } else {
-          acc.push({ ...platform });
-        }
-        return acc;
-      }, []);
+      setPlatformData(normalizedPlatforms);
 
-      // Calculate pacing for each platform
-      const platformsWithPacing = mergedPlatforms.map((platform) => ({
-        ...platform,
-        pacing: calculatePacing(platform.mtdRevenue, platform.target),
-      }));
-
-      setPlatformData(platformsWithPacing);
-
-      // Calculate summary
-      const totalRevenue = platformsWithPacing.reduce(
-        (sum, p) => sum + p.mtdRevenue,
-        0
-      );
-      const totalTarget = platformsWithPacing.reduce((sum, p) => sum + p.target, 0);
-      const totalGMV = platformsWithPacing.reduce((sum, p) => sum + p.mtdGMV, 0);
-      const totalTransactions = platformsWithPacing.reduce(
-        (sum, p) => sum + p.transactions,
-        0
-      );
-      const totalBrands = platformsWithPacing.reduce((sum, p) => sum + p.brands, 0);
-
+      // Set month summary
       setMonthSummary({
-        totalRevenue,
-        totalTarget,
-        totalGMV,
-        totalTransactions,
-        totalBrands,
-        overallPacing: calculatePacing(totalRevenue, totalTarget),
-        daysAccounted: getDaysAccounted(),
-        daysInMonth: getDaysInMonth(),
+        totalRevenue: summary.totalRevenue || 0,
+        totalTarget: summary.totalTarget || 0,
+        totalGMV: summary.totalGMV || 0,
+        totalTransactions: 0, // Not currently tracked
+        totalBrands: summary.totalBrands || 0,
+        overallPacing: summary.overallPacing || 0,
+        daysAccounted: summary.daysAccounted || getDaysAccounted(),
+        daysInMonth: summary.daysInMonth || getDaysInMonth(),
       });
-
-      // Weekly data will be generated by the useEffect hook
-      // after platformData is set
 
       setLoading(false);
     } catch (error) {
