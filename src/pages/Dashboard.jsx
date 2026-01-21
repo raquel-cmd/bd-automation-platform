@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
 import Layout from '../components/Layout';
 import { dashboard } from '../utils/api';
 import {
@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [weeklyData, setWeeklyData] = useState([]);
   const [weekRangeStart, setWeekRangeStart] = useState(4); // 4 weeks ago
   const [weekRangeEnd, setWeekRangeEnd] = useState(0); // current week
+  const [showOtherAffiliateDetails, setShowOtherAffiliateDetails] = useState(false);
+  const [showFlatFeeDetails, setShowFlatFeeDetails] = useState(false);
 
   // Force refresh - updated layout with 3 sections: Revenue Card, Weekly Revenue (categorized), Top Brands
 
@@ -38,237 +40,121 @@ export default function Dashboard() {
     }
   }, [weekRangeStart, weekRangeEnd, platformData.length]);
 
-  const generateWeeklyData = () => {
+  // Normalize platform names
+  const normalizePlatformName = (name) => {
+    if (name.toLowerCase() === 'skimbit') return 'Skimlinks';
+    return name;
+  };
+
+  const generateWeeklyData = async () => {
     if (platformData.length === 0) return;
 
-    const weeks = getWeekRange(weekRangeStart, weekRangeEnd);
-    const mockWeekly = platformData.map(platform => {
-      const weekRevenues = weeks.map((week, idx) => {
-        // Simulate decreasing revenue for older weeks
-        const baseRevenue = platform.weekRevenue || platform.mtdRevenue / 4;
-        const variance = 0.8 + Math.random() * 0.4;
-        return Math.floor(baseRevenue * variance);
+    try {
+      const weeks = getWeekRange(weekRangeStart, weekRangeEnd);
+      if (weeks.length === 0) return;
+
+      // Get start and end dates for API call
+      const fromWeek = weeks[weeks.length - 1].start.toISOString().split('T')[0];
+      const toWeek = weeks[0].end.toISOString().split('T')[0];
+
+      // Fetch real weekly revenue data from API
+      const response = await dashboard.getWeeklyRevenue(fromWeek, toWeek);
+
+      if (!response.success || !response.data) {
+        console.error('Failed to fetch weekly revenue data');
+        return;
+      }
+
+      // Transform API data to match component structure
+      const weeklyDataFormatted = response.data.map(weeklyPlatformData => {
+        // Create a map of dates to revenues
+        const revenueByDate = {};
+        weeklyPlatformData.weekRevenues.forEach(wr => {
+          revenueByDate[wr.date] = wr.revenue;
+        });
+
+        // Map weeks to revenues in correct order
+        const weekRevenues = weeks.map(week => {
+          const weekStart = week.start.toISOString().split('T')[0];
+          return revenueByDate[weekStart] || 0;
+        });
+
+        // Find platform category from state platformData
+        const platformName = weeklyPlatformData.platform;
+        const platformInfo = platformData.find(p => p.name === platformName);
+        const category = platformInfo?.category || 'unknown';
+
+        return {
+          platform: weeklyPlatformData.platform,
+          category: category,
+          weeks: weekRevenues,
+        };
       });
 
-      return {
-        platform: platform.name,
-        weeks: weekRevenues
-      };
-    });
-    setWeeklyData(mockWeekly);
+      setWeeklyData(weeklyDataFormatted);
+    } catch (error) {
+      console.error('Error generating weekly data:', error);
+    }
   };
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
 
-      // Mock data for demonstration (replace with real API calls)
-      const mockData = {
-        platforms: [
-          // Attribution Partners
-          {
-            name: 'Creator Connections',
-            mtdRevenue: 225000,
-            mtdGMV: 5625000,
-            target: 225000,
-            weekRevenue: 52000,
-            weekGMV: 1300000,
-            transactions: 412,
-            brands: 124,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'Samsung', revenue: 78000, gmv: 1950000, transactions: 145, target: 75000, weekRevenue: 18000 },
-              { name: 'LG', revenue: 68000, gmv: 1700000, transactions: 132, target: 70000, weekRevenue: 15500 },
-              { name: 'Sony', revenue: 79000, gmv: 1975000, transactions: 135, target: 72000, weekRevenue: 18500 },
-              { name: 'Panasonic', revenue: 45000, gmv: 1125000, transactions: 89, target: 48000, weekRevenue: 10200 },
-              { name: 'Philips', revenue: 38000, gmv: 950000, transactions: 76, target: 40000, weekRevenue: 8800 },
-              { name: 'Bose', revenue: 35000, gmv: 875000, transactions: 68, target: 38000, weekRevenue: 8100 },
-              { name: 'JBL', revenue: 32000, gmv: 800000, transactions: 62, target: 35000, weekRevenue: 7400 },
-              { name: 'Canon', revenue: 28000, gmv: 700000, transactions: 54, target: 30000, weekRevenue: 6500 },
-              { name: 'Nikon', revenue: 25000, gmv: 625000, transactions: 48, target: 28000, weekRevenue: 5800 },
-              { name: 'GoPro', revenue: 22000, gmv: 550000, transactions: 42, target: 25000, weekRevenue: 5100 },
-              { name: 'DJI', revenue: 18000, gmv: 450000, transactions: 36, target: 20000, weekRevenue: 4200 },
-            ],
-          },
-          {
-            name: 'Levanta',
-            mtdRevenue: 145000,
-            mtdGMV: 3625000,
-            target: 150000,
-            weekRevenue: 34000,
-            weekGMV: 850000,
-            transactions: 268,
-            brands: 87,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'Apple', revenue: 52000, gmv: 1300000, transactions: 98, target: 55000, weekRevenue: 12000 },
-              { name: 'Microsoft', revenue: 38000, gmv: 950000, transactions: 72, target: 40000, weekRevenue: 8800 },
-              { name: 'Dell', revenue: 28000, gmv: 700000, transactions: 53, target: 30000, weekRevenue: 6500 },
-              { name: 'HP', revenue: 15000, gmv: 375000, transactions: 28, target: 16000, weekRevenue: 3500 },
-              { name: 'Lenovo', revenue: 12000, gmv: 300000, transactions: 17, target: 13000, weekRevenue: 2800 },
-            ],
-          },
-          {
-            name: 'Perch',
-            mtdRevenue: 98000,
-            mtdGMV: 2450000,
-            target: 105000,
-            weekRevenue: 23000,
-            weekGMV: 575000,
-            transactions: 182,
-            brands: 62,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'Dyson', revenue: 42000, gmv: 1050000, transactions: 78, target: 45000, weekRevenue: 9800 },
-              { name: 'Shark', revenue: 28000, gmv: 700000, transactions: 52, target: 30000, weekRevenue: 6500 },
-              { name: 'iRobot', revenue: 16000, gmv: 400000, transactions: 30, target: 18000, weekRevenue: 3700 },
-              { name: 'Bissell', revenue: 8000, gmv: 200000, transactions: 15, target: 9000, weekRevenue: 1900 },
-              { name: 'Hoover', revenue: 4000, gmv: 100000, transactions: 7, target: 5000, weekRevenue: 950 },
-            ],
-          },
-          {
-            name: 'PartnerBoost',
-            mtdRevenue: 76000,
-            mtdGMV: 1900000,
-            target: 80000,
-            weekRevenue: 18000,
-            weekGMV: 450000,
-            transactions: 142,
-            brands: 48,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'Nike', revenue: 32000, gmv: 800000, transactions: 60, target: 35000, weekRevenue: 7500 },
-              { name: 'Adidas', revenue: 24000, gmv: 600000, transactions: 45, target: 25000, weekRevenue: 5600 },
-              { name: 'Puma', revenue: 12000, gmv: 300000, transactions: 22, target: 13000, weekRevenue: 2800 },
-              { name: 'Under Armour', revenue: 5000, gmv: 125000, transactions: 9, target: 5500, weekRevenue: 1200 },
-              { name: 'New Balance', revenue: 3000, gmv: 75000, transactions: 6, target: 3500, weekRevenue: 700 },
-            ],
-          },
-          {
-            name: 'Archer',
-            mtdRevenue: 62000,
-            mtdGMV: 1550000,
-            target: 65000,
-            weekRevenue: 14500,
-            weekGMV: 362500,
-            transactions: 115,
-            brands: 39,
-            category: 'attribution',
-            brandDetails: [
-              { name: 'KitchenAid', revenue: 28000, gmv: 700000, transactions: 52, target: 30000, weekRevenue: 6500 },
-              { name: 'Cuisinart', revenue: 18000, gmv: 450000, transactions: 33, target: 19000, weekRevenue: 4200 },
-              { name: 'Ninja', revenue: 10000, gmv: 250000, transactions: 18, target: 11000, weekRevenue: 2300 },
-              { name: 'Breville', revenue: 4000, gmv: 100000, transactions: 7, target: 4500, weekRevenue: 950 },
-              { name: 'Vitamix', revenue: 2000, gmv: 50000, transactions: 5, target: 2500, weekRevenue: 470 },
-            ],
-          },
-          // Affiliate Platforms
-          {
-            name: 'Skimlinks',
-            mtdRevenue: 200000,
-            mtdGMV: 4000000,
-            target: 285000,
-            weekRevenue: 45000,
-            weekGMV: 900000,
-            transactions: 237,
-            brands: 79,
-            category: 'affiliate',
-            brandDetails: [
-              { name: 'Amazon', revenue: 85000, gmv: 1700000, transactions: 98, target: 120000, weekRevenue: 19800 },
-              { name: 'Walmart', revenue: 62000, gmv: 1240000, transactions: 67, target: 88000, weekRevenue: 14400 },
-              { name: 'Target', revenue: 53000, gmv: 1060000, transactions: 72, target: 75000, weekRevenue: 12300 },
-              { name: 'Best Buy', revenue: 35000, gmv: 700000, transactions: 42, target: 50000, weekRevenue: 8100 },
-              { name: 'Home Depot', revenue: 28000, gmv: 560000, transactions: 33, target: 40000, weekRevenue: 6500 },
-            ],
-          },
-          {
-            name: 'Impact',
-            mtdRevenue: 125000,
-            mtdGMV: 2500000,
-            target: 140000,
-            weekRevenue: 29000,
-            weekGMV: 580000,
-            transactions: 156,
-            brands: 52,
-            category: 'affiliate',
-            brandDetails: [
-              { name: 'Wayfair', revenue: 48000, gmv: 960000, transactions: 60, target: 55000, weekRevenue: 11200 },
-              { name: 'Overstock', revenue: 35000, gmv: 700000, transactions: 44, target: 40000, weekRevenue: 8100 },
-              { name: 'Etsy', revenue: 24000, gmv: 480000, transactions: 30, target: 27000, weekRevenue: 5600 },
-              { name: 'eBay', revenue: 12000, gmv: 240000, transactions: 15, target: 13000, weekRevenue: 2800 },
-              { name: 'Rakuten', revenue: 6000, gmv: 120000, transactions: 7, target: 7000, weekRevenue: 1400 },
-            ],
-          },
-          // Flat Fee Partnerships
-          {
-            name: 'Dyson',
-            mtdRevenue: 35000,
-            mtdGMV: 0,
-            target: 35000,
-            weekRevenue: 8750,
-            weekGMV: 0,
-            transactions: 1,
-            brands: 1,
-            category: 'flatfee',
-            brandDetails: [
-              { name: 'Dyson', revenue: 35000, gmv: 0, transactions: 1, target: 35000, weekRevenue: 8750 },
-            ],
-          },
-          {
-            name: 'Other Flat Fee',
-            mtdRevenue: 49000,
-            mtdGMV: 0,
-            target: 49417,
-            weekRevenue: 12000,
-            weekGMV: 0,
-            transactions: 8,
-            brands: 12,
-            category: 'flatfee',
-            brandDetails: [
-              { name: 'Samsung Sponsorship', revenue: 15000, gmv: 0, transactions: 1, target: 15000, weekRevenue: 3750 },
-              { name: 'LG Partnership', revenue: 18000, gmv: 0, transactions: 1, target: 18000, weekRevenue: 4500 },
-              { name: 'Sony Deal', revenue: 16000, gmv: 0, transactions: 1, target: 16417, weekRevenue: 4000 },
-              { name: 'Brand A', revenue: 8000, gmv: 0, transactions: 2, target: 8000, weekRevenue: 2000 },
-              { name: 'Brand B', revenue: 5000, gmv: 0, transactions: 3, target: 5000, weekRevenue: 1250 },
-            ],
-          },
-        ],
-      };
+      // Fetch real data from API
+      const overviewResponse = await dashboard.getOverview();
 
-      // Calculate pacing for each platform
-      const platformsWithPacing = mockData.platforms.map((platform) => ({
-        ...platform,
-        pacing: calculatePacing(platform.mtdRevenue, platform.target),
+      if (!overviewResponse || !overviewResponse.platforms) {
+        console.error('Failed to fetch dashboard overview');
+        setLoading(false);
+        return;
+      }
+
+      const {
+        platforms: rawPlatforms,
+        summary,
+        platformsByCategory,
+      } = overviewResponse;
+
+      // Normalize platform names and prepare data
+      const normalizedPlatforms = rawPlatforms.map(platform => ({
+        name: normalizePlatformName(platform.name),
+        mtdRevenue: platform.mtdRevenue || 0,
+        mtdGMV: platform.mtdGmv || 0,
+        target: platform.targetGmv || 0,
+        weekRevenue: platform.weeklyRevenue || 0,
+        weekGMV: 0, // Not currently tracked
+        transactions: 0, // Not currently tracked
+        brands: platform.brandCount || 0,
+        category: platform.category || 'attribution',
+        pacing: platform.pacing || 0,
+        brandDetails: (platform.brands || []).map(brand => ({
+          name: brand.brand,
+          revenue: brand.mtdRevenue,
+          gmv: brand.mtdGmv,
+          transactions: 0, // Not currently tracked
+          target: brand.targetGmv,
+          weekRevenue: brand.weeklyRevenue,
+          totalContractRevenue: brand.totalContractRevenue,
+          pctToTarget: brand.pctToTarget,
+          pacingPct: brand.pacingPct,
+          daysLeft: brand.daysLeft,
+        })),
       }));
 
-      setPlatformData(platformsWithPacing);
+      setPlatformData(normalizedPlatforms);
 
-      // Calculate summary
-      const totalRevenue = platformsWithPacing.reduce(
-        (sum, p) => sum + p.mtdRevenue,
-        0
-      );
-      const totalTarget = platformsWithPacing.reduce((sum, p) => sum + p.target, 0);
-      const totalGMV = platformsWithPacing.reduce((sum, p) => sum + p.mtdGMV, 0);
-      const totalTransactions = platformsWithPacing.reduce(
-        (sum, p) => sum + p.transactions,
-        0
-      );
-      const totalBrands = platformsWithPacing.reduce((sum, p) => sum + p.brands, 0);
-
+      // Set month summary
       setMonthSummary({
-        totalRevenue,
-        totalTarget,
-        totalGMV,
-        totalTransactions,
-        totalBrands,
-        overallPacing: calculatePacing(totalRevenue, totalTarget),
-        daysAccounted: getDaysAccounted(),
-        daysInMonth: getDaysInMonth(),
+        totalRevenue: summary.totalRevenue || 0,
+        totalTarget: summary.totalTarget || 0,
+        totalGMV: summary.totalGMV || 0,
+        totalTransactions: 0, // Not currently tracked
+        totalBrands: summary.totalBrands || 0,
+        overallPacing: summary.overallPacing || 0,
+        daysAccounted: summary.daysAccounted || getDaysAccounted(),
+        daysInMonth: summary.daysInMonth || getDaysInMonth(),
       });
-
-      // Weekly data will be generated by the useEffect hook
-      // after platformData is set
 
       setLoading(false);
     } catch (error) {
@@ -308,23 +194,126 @@ export default function Dashboard() {
     const brands = platform.brandDetails || [];
     const limit = platform.name === 'Creator Connections' ? 10 : 5;
 
+    const daysAccounted = getDaysAccounted();
+    const daysInMonth = getDaysInMonth();
+    const daysLeft = daysInMonth - daysAccounted;
+
     // Sort by MTD revenue descending and take top N
     return brands
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, limit)
-      .map(brand => ({
-        ...brand,
-        pacing: brand.target ? calculatePacing(brand.revenue, brand.target) : null
-      }));
+      .map(brand => {
+        // Map old fields to new structure
+        const mtdRevenue = brand.revenue;
+        const mtdGmv = brand.gmv;
+        const targetGmv = brand.target || 0;
+        const weeklyRevenue = brand.weekRevenue || 0;
+
+        // Stub totalContractRevenue as 2.5x the target (typical contract structure)
+        const totalContractRevenue = targetGmv * 2.5;
+
+        // Calculate % to Target
+        const pctToTarget = targetGmv > 0 ? (mtdGmv / targetGmv) * 100 : 0;
+
+        // Calculate new pacing formula: ((mtdGmv / daysAccounted) * daysLeft / targetGmv) * 100
+        const pacingPct = (targetGmv > 0 && daysAccounted > 0)
+          ? ((mtdGmv / daysAccounted) * daysLeft / targetGmv) * 100
+          : 0;
+
+        return {
+          brand: brand.name,
+          weeklyRevenue,
+          mtdRevenue,
+          totalContractRevenue,
+          mtdGmv,
+          targetGmv,
+          pctToTarget,
+          daysLeft,
+          pacingPct,
+          daysAccounted
+        };
+      });
   };
 
   const getCategoryLabel = (category) => {
     const labels = {
       'attribution': 'Attribution Partners',
-      'affiliate': 'Affiliate Platforms',
+      'affiliate': 'Affiliate Partners', // Changed from "Affiliate Platforms"
       'flatfee': 'Flat Fee Partnerships'
     };
     return labels[category] || category;
+  };
+
+  // Helper to get organized weekly data (no category grouping)
+  const getOrganizedWeeklyData = () => {
+    // Define platforms to show explicitly
+    const mainPlatforms = ['Skimlinks', 'Impact', 'Howl', 'BrandAds'];
+
+    // Platforms that go into "Other"
+    const otherPlatformNames = ['Awin', 'Partnerize', 'Connexity', 'Apple', 'Rakuten'];
+
+    // Get main platforms
+    const main = weeklyData.filter(pw => mainPlatforms.includes(pw.platform));
+
+    // Get "Other" platforms (affiliate platforms not in main list)
+    const otherPlatforms = weeklyData.filter(pw => {
+      const platform = platformData.find(p => p.name === pw.platform);
+      // Include if it's in otherPlatformNames OR if it's affiliate/attribution but not in main
+      return (
+        otherPlatformNames.includes(pw.platform) ||
+        (platform?.category === 'affiliate' && !mainPlatforms.includes(pw.platform) && !otherPlatformNames.includes(pw.platform)) ||
+        (platform?.category === 'attribution' && !mainPlatforms.includes(pw.platform) && !otherPlatformNames.includes(pw.platform))
+      );
+    });
+
+    // Aggregate "Other" platforms
+    let otherAggregate = null;
+    if (otherPlatforms.length > 0) {
+      const numWeeks = otherPlatforms[0]?.weeks?.length || 0;
+      const aggregatedWeeks = Array(numWeeks).fill(0);
+
+      otherPlatforms.forEach(pw => {
+        pw.weeks.forEach((revenue, idx) => {
+          aggregatedWeeks[idx] += revenue;
+        });
+      });
+
+      otherAggregate = {
+        platform: 'Other',
+        weeks: aggregatedWeeks,
+        isAggregate: true,
+        details: otherPlatforms
+      };
+    }
+
+    return { main, otherAggregate };
+  };
+
+  // Helper to aggregate flat fee platforms
+  const getFlatFeeWeeklyData = () => {
+    const flatFeeData = weeklyData.filter(pw => {
+      const platform = platformData.find(p => p.name === pw.platform);
+      return platform?.category === 'flatfee';
+    });
+
+    if (flatFeeData.length === 0) return null;
+
+    const numWeeks = flatFeeData[0]?.weeks?.length || 0;
+    const aggregatedWeeks = Array(numWeeks).fill(0);
+
+    flatFeeData.forEach(pw => {
+      pw.weeks.forEach((revenue, idx) => {
+        aggregatedWeeks[idx] += revenue;
+      });
+    });
+
+    return {
+      platform: 'Flat Fee Deals',
+      category: 'flatfee',
+      weeks: aggregatedWeeks,
+      isAggregate: true,
+      details: flatFeeData
+    };
   };
 
   const ProgressBar = ({ value, max, className = '' }) => {
@@ -351,19 +340,16 @@ export default function Dashboard() {
     );
   }
 
+  // Get weeks for display (reversed - newest first)
+  const weeks = getWeekRange(weekRangeStart, weekRangeEnd);
+  const displayWeeks = [...weeks].reverse();
+
   return (
     <Layout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              Enhanced Dashboard
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {getMonthName()} • {formatDateRange(getCurrentWeekStart(), getCurrentWeekEnd())}
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Enhanced Dashboard</h1>
           {monthSummary && (
             <div className="text-right">
               <div className="text-sm text-gray-500">
@@ -384,9 +370,14 @@ export default function Dashboard() {
               <div className="text-2xl font-bold text-gray-900 mt-1">
                 {formatCurrency(monthSummary.totalRevenue)} / {formatCurrency(monthSummary.totalTarget)}
               </div>
-              <div className={`text-lg font-semibold mt-1 ${getPacingColor(monthSummary.overallPacing)}`}>
-                {formatPercentage(monthSummary.overallPacing, 1)}
-              </div>
+              {(() => {
+                const percentOfGoal = (monthSummary.totalRevenue / monthSummary.totalTarget) * 100;
+                return (
+                  <div className={`text-lg font-semibold mt-1 ${getPacingColor(percentOfGoal)}`}>
+                    {formatPercentage(percentOfGoal, 1)} of goal
+                  </div>
+                );
+              })()}
               <ProgressBar
                 value={monthSummary.totalRevenue}
                 max={monthSummary.totalTarget}
@@ -466,7 +457,7 @@ export default function Dashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Platform
                     </th>
-                    {getWeekRange(weekRangeStart, weekRangeEnd).map((week, idx) => (
+                    {displayWeeks.map((week, idx) => (
                       <th
                         key={idx}
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -478,34 +469,23 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {['attribution', 'affiliate', 'flatfee'].map((category) => {
-                    const categoryPlatforms = weeklyData.filter(pw => {
-                      const platform = platformData.find(p => p.name === pw.platform);
-                      return platform?.category === category;
-                    });
-
-                    if (categoryPlatforms.length === 0) return null;
+                  {/* Main platforms (no category grouping) */}
+                  {(() => {
+                    const { main, otherAggregate } = getOrganizedWeeklyData();
 
                     return (
-                      <React.Fragment key={category}>
-                        {/* Category Header Row */}
-                        <tr className="bg-gray-100">
-                          <td colSpan={getWeekRange(weekRangeStart, weekRangeEnd).length + 1} className="px-6 py-2">
-                            <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                              {getCategoryLabel(category)}
-                            </div>
-                          </td>
-                        </tr>
-                        {/* Platform Rows */}
-                        {categoryPlatforms.map((platformWeekly) => {
+                      <>
+                        {/* Main platforms */}
+                        {main.map((platformWeekly) => {
                           const weeks = platformWeekly.weeks || [];
+                          const reversedWeeks = [...weeks].reverse();
                           return (
                             <tr key={platformWeekly.platform} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                                 {platformWeekly.platform}
                               </td>
-                              {weeks.map((revenue, idx) => {
-                                const previousRevenue = idx > 0 ? weeks[idx - 1] : null;
+                              {reversedWeeks.map((revenue, idx) => {
+                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
                                 const wowGrowth = previousRevenue
                                   ? calculateWoWGrowth(revenue, previousRevenue)
                                   : null;
@@ -531,9 +511,176 @@ export default function Dashboard() {
                             </tr>
                           );
                         })}
-                      </React.Fragment>
+
+                        {/* "Other" aggregate row with expandable details */}
+                        {otherAggregate && (
+                          <>
+                            <tr
+                              className="hover:bg-gray-50 cursor-pointer"
+                              onClick={() => setShowOtherAffiliateDetails(!showOtherAffiliateDetails)}
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                <div className="flex items-center">
+                                  {showOtherAffiliateDetails ? (
+                                    <ChevronDown className="w-4 h-4 mr-2" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 mr-2" />
+                                  )}
+                                  Other
+                                </div>
+                              </td>
+                              {[...otherAggregate.weeks].reverse().map((revenue, idx) => {
+                                const reversedWeeks = [...otherAggregate.weeks].reverse();
+                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                const wowGrowth = previousRevenue
+                                  ? calculateWoWGrowth(revenue, previousRevenue)
+                                  : null;
+
+                                return (
+                                  <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
+                                    <div className="font-semibold text-gray-900">
+                                      {formatCurrency(revenue)}
+                                    </div>
+                                    {wowGrowth !== null && (
+                                      <div
+                                        className={`text-xs font-medium ${
+                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                        }`}
+                                      >
+                                        {wowGrowth >= 0 ? '+' : ''}
+                                        {formatPercentage(wowGrowth, 1)}
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                            {/* Expandable "Other" details */}
+                            {showOtherAffiliateDetails && otherAggregate.details.map((detail) => {
+                              const reversedWeeks = [...detail.weeks].reverse();
+                              return (
+                                <tr key={detail.platform} className="bg-gray-50 hover:bg-gray-100">
+                                  <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
+                                    {detail.platform}
+                                  </td>
+                                  {reversedWeeks.map((revenue, idx) => {
+                                    const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                    const wowGrowth = previousRevenue
+                                      ? calculateWoWGrowth(revenue, previousRevenue)
+                                      : null;
+
+                                    return (
+                                      <td key={idx} className="px-6 py-3 whitespace-nowrap text-right text-sm">
+                                        <div className="font-semibold text-gray-700">
+                                          {formatCurrency(revenue)}
+                                        </div>
+                                        {wowGrowth !== null && (
+                                          <div
+                                            className={`text-xs font-medium ${
+                                              wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                            }`}
+                                          >
+                                            {wowGrowth >= 0 ? '+' : ''}
+                                            {formatPercentage(wowGrowth, 1)}
+                                          </div>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </>
+                        )}
+
+                        {/* Flat Fee Deals (single aggregated row) */}
+                        {(() => {
+                          const flatFeeAggregate = getFlatFeeWeeklyData();
+                          if (!flatFeeAggregate) return null;
+
+                          return (
+                            <>
+                              <tr
+                                className="hover:bg-gray-50 cursor-pointer"
+                                onClick={() => setShowFlatFeeDetails(!showFlatFeeDetails)}
+                              >
+                                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                  <div className="flex items-center">
+                                    {showFlatFeeDetails ? (
+                                      <ChevronDown className="w-4 h-4 mr-2" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4 mr-2" />
+                                    )}
+                                    Flat Fee Deals
+                                  </div>
+                                </td>
+                                {[...flatFeeAggregate.weeks].reverse().map((revenue, idx) => {
+                                  const reversedWeeks = [...flatFeeAggregate.weeks].reverse();
+                                  const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                  const wowGrowth = previousRevenue
+                                    ? calculateWoWGrowth(revenue, previousRevenue)
+                                    : null;
+
+                                  return (
+                                    <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
+                                      <div className="font-semibold text-gray-900">
+                                        {formatCurrency(revenue)}
+                                      </div>
+                                      {wowGrowth !== null && (
+                                        <div
+                                          className={`text-xs font-medium ${
+                                            wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                          }`}
+                                        >
+                                          {wowGrowth >= 0 ? '+' : ''}
+                                          {formatPercentage(wowGrowth, 1)}
+                                        </div>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                              {/* Expandable flat fee details */}
+                              {showFlatFeeDetails && flatFeeAggregate.details.map((detail) => {
+                                const reversedWeeks = [...detail.weeks].reverse();
+                                return (
+                                  <tr key={detail.platform} className="bg-gray-50 hover:bg-gray-100">
+                                    <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
+                                      {detail.platform}
+                                    </td>
+                                    {reversedWeeks.map((revenue, idx) => {
+                                      const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                      const wowGrowth = previousRevenue
+                                        ? calculateWoWGrowth(revenue, previousRevenue)
+                                        : null;
+
+                                      return (
+                                        <td key={idx} className="px-6 py-3 whitespace-nowrap text-right text-sm">
+                                          <div className="font-semibold text-gray-700">
+                                            {formatCurrency(revenue)}
+                                          </div>
+                                          {wowGrowth !== null && (
+                                            <div
+                                              className={`text-xs font-medium ${
+                                                wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                              }`}
+                                            >
+                                              {wowGrowth >= 0 ? '+' : ''}
+                                              {formatPercentage(wowGrowth, 1)}
+                                            </div>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                );
+                              })}
+                            </>
+                          );
+                        })()}
+                      </>
                     );
-                  })}
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -586,42 +733,42 @@ export default function Dashboard() {
                                       Brand
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                      Weekly Revenue
+                                    </th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                                       MTD Revenue
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                      % to Target
+                                    </th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                      Pacing
+                                    </th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                                       MTD GMV
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Target
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Pacing %
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Week Revenue
                                     </th>
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
                                   {topBrands.map((brand, idx) => (
-                                    <tr key={`${platform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
+                                    <tr key={`${platform.name}-${brand.brand}-${idx}`} className="hover:bg-gray-50">
                                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {brand.name}
+                                        {brand.brand}
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                        {formatCurrency(brand.weeklyRevenue)}
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
-                                        {formatCurrency(brand.revenue)}
+                                        {formatCurrency(brand.mtdRevenue)}
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                        {brand.pctToTarget.toFixed(1)}%
+                                      </td>
+                                      <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPacingColor(brand.pacingPct)}`}>
+                                        {brand.pacingPct.toFixed(1)}%
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.gmv > 0 ? formatCurrency(brand.gmv) : '—'}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.target ? formatCurrency(brand.target) : '—'}
-                                      </td>
-                                      <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${brand.pacing ? getPacingColor(brand.pacing) : 'text-gray-400'}`}>
-                                        {brand.pacing ? formatPercentage(brand.pacing, 1) : '—'}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.weekRevenue ? formatCurrency(brand.weekRevenue) : '—'}
+                                        {brand.mtdGmv > 0 ? formatCurrency(brand.mtdGmv) : '—'}
                                       </td>
                                     </tr>
                                   ))}
@@ -639,10 +786,113 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Flat Fee Performance Section */}
+        {(() => {
+          const flatFeePlatforms = getPlatformsByCategory('flatfee');
+          if (flatFeePlatforms.length === 0) return null;
+
+          const daysAccounted = getDaysAccounted();
+          const daysInMonth = getDaysInMonth();
+          const daysLeft = daysInMonth - daysAccounted;
+
+          // Aggregate all flat fee data
+          const flatFeeData = flatFeePlatforms.flatMap(platform => {
+            const topBrands = getTopBrandsForPlatform(platform);
+            return topBrands.map(brand => ({
+              platform: brand.brand, // Use brand name as platform
+              mtdRevenue: brand.mtdRevenue,
+              totalContractRevenue: brand.totalContractRevenue,
+              mtdGmv: brand.mtdGmv,
+              targetGmv: brand.targetGmv,
+              pctToTarget: brand.pctToTarget,
+              daysLeft: daysLeft,
+              pacingPct: brand.pacingPct,
+            }));
+          });
+
+          if (flatFeeData.length === 0) return null;
+
+          return (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Flat Fee Performance
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Combined flat fee partnership performance metrics
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Platform
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        MTD Revenue
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Total Contract Revenue
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        GMV to Date
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Target GMV
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        % to Target
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Days Left in Campaign
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Pacing
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {flatFeeData.map((item, idx) => (
+                      <tr key={`flatfee-${item.platform}-${idx}`} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {item.platform}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                          {formatCurrency(item.mtdRevenue)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                          {formatCurrency(item.totalContractRevenue)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                          {item.mtdGmv > 0 ? formatCurrency(item.mtdGmv) : '—'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                          {item.targetGmv > 0 ? formatCurrency(item.targetGmv) : '—'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                          {item.pctToTarget.toFixed(1)}%
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                          {item.daysLeft}
+                        </td>
+                        <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPacingColor(item.pacingPct)}`}>
+                          {item.pacingPct.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Formula Reference */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="text-sm text-blue-800">
-            <strong>Pacing Formula:</strong> (MTD Revenue ÷ Days Accounted) × Days in Month ÷ Target × 100
+            <strong>Pacing Formula:</strong> ((GMV to Date ÷ Days Accounted) × Days Left ÷ Target GMV) × 100
           </div>
           <div className="text-xs text-blue-600 mt-1">
             Finance Cycle: Weeks run Thursday to Wednesday

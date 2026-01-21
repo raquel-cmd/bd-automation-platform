@@ -109,8 +109,8 @@ export const dashboard = {
     return fetchAPI(`/api/brands?platform=${encodeURIComponent(platform)}`);
   },
 
-  getWeeklyRevenue: async () => {
-    return fetchAPI('/api/dashboard/weekly-revenue');
+  getWeeklyRevenue: async (fromWeek, toWeek) => {
+    return fetchAPI(`/api/dashboard/weekly-revenue?fromWeek=${encodeURIComponent(fromWeek)}&toWeek=${encodeURIComponent(toWeek)}`);
   },
 };
 

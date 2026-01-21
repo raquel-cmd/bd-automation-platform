@@ -1,126 +1,137 @@
-import { brands, transactions, platformTargets } from '../data/mockData.js';
-import { calculatePacing, getDaysInMonth, getDaysAccounted } from '../utils/dateUtils.js';
+/**
+ * Dashboard Controllers
+ * Handles dashboard API endpoints with real database queries
+ */
 
-export const getOverview = (req, res) => {
+import {
+  getDashboardOverview,
+  getPlatformPerformance as getPlatformPerformanceData,
+  getCategorizedPlatforms,
+  getWeeklyRevenueByPlatform,
+} from '../lib/dataLoaders.js';
+
+/**
+ * GET /api/dashboard/overview
+ * Returns overall dashboard summary
+ */
+export const getOverview = async (req, res) => {
   try {
-    // Calculate platform aggregates
-    const platformData = {};
-
-    Object.keys(platformTargets).forEach(platform => {
-      const platformTransactions = transactions.filter(t => t.platform === platform);
-      const platformBrands = brands.filter(b => b.platform === platform);
-
-      const mtdRevenue = platformTransactions.reduce((sum, t) => sum + t.revenue, 0);
-      const mtdGMV = platformTransactions.reduce((sum, t) => sum + t.gmv, 0);
-      const totalTransactions = platformTransactions.reduce((sum, t) => sum + t.quantity, 0);
-
-      // Calculate week revenue (mock - last 3 transactions)
-      const weekRevenue = platformTransactions.slice(0, 3).reduce((sum, t) => sum + t.revenue, 0);
-      const weekGMV = platformTransactions.slice(0, 3).reduce((sum, t) => sum + t.gmv, 0);
-
-      const target = platformTargets[platform];
-      const pacing = calculatePacing(mtdRevenue, target);
-
-      platformData[platform] = {
-        name: platform,
-        mtdRevenue,
-        mtdGMV,
-        target,
-        pacing,
-        weekRevenue,
-        weekGMV,
-        transactions: totalTransactions,
-        brands: platformBrands.length,
-      };
-    });
-
-    // Calculate totals
-    const totalRevenue = Object.values(platformData).reduce((sum, p) => sum + p.mtdRevenue, 0);
-    const totalTarget = Object.values(platformData).reduce((sum, p) => sum + p.target, 0);
-    const totalGMV = Object.values(platformData).reduce((sum, p) => sum + p.mtdGMV, 0);
-    const totalTransactions = Object.values(platformData).reduce((sum, p) => sum + p.transactions, 0);
-    const totalBrands = brands.length;
+    const overview = await getDashboardOverview();
+    const categorized = await getCategorizedPlatforms();
 
     res.json({
-      platforms: Object.values(platformData),
-      summary: {
-        totalRevenue,
-        totalTarget,
-        totalGMV,
-        totalTransactions,
-        totalBrands,
-        overallPacing: calculatePacing(totalRevenue, totalTarget),
-        daysAccounted: getDaysAccounted(),
-        daysInMonth: getDaysInMonth(),
+      summary: overview,
+      platforms: categorized.all,
+      platformsByCategory: {
+        attribution: categorized.attribution,
+        affiliate: categorized.affiliate,
+        flatfee: categorized.flatfee,
       },
     });
   } catch (error) {
     console.error('Dashboard overview error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dashboard overview',
+      message: error.message,
+    });
   }
 };
 
-export const getPlatformPerformance = (req, res) => {
+/**
+ * GET /api/dashboard/platform-performance
+ * Returns detailed platform performance data with top brands
+ */
+export const getPlatformPerformance = async (req, res) => {
   try {
-    const platformPerformance = Object.keys(platformTargets).map(platform => {
-      const platformTransactions = transactions.filter(t => t.platform === platform);
-      const platformBrands = brands.filter(b => b.platform === platform);
+    const { platforms } = await getPlatformPerformanceData();
 
-      const mtdRevenue = platformTransactions.reduce((sum, t) => sum + t.revenue, 0);
-      const mtdGMV = platformTransactions.reduce((sum, t) => sum + t.gmv, 0);
-      const target = platformTargets[platform];
-      const pacing = calculatePacing(mtdRevenue, target);
-
-      return {
-        platform,
-        mtdRevenue,
-        mtdGMV,
-        target,
-        pacing,
-        brands: platformBrands.length,
-        transactions: platformTransactions.length,
-      };
+    res.json({
+      success: true,
+      platforms,
     });
-
-    res.json(platformPerformance);
   } catch (error) {
     console.error('Platform performance error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch platform performance',
+      message: error.message,
+    });
   }
 };
 
-export const getBrandsByPlatform = (req, res) => {
+/**
+ * GET /api/dashboard/weekly-revenue
+ * Returns weekly revenue data for all platforms
+ * Query params:
+ *   - fromWeek: Start week date (YYYY-MM-DD)
+ *   - toWeek: End week date (YYYY-MM-DD)
+ */
+export const getWeeklyRevenue = async (req, res) => {
+  try {
+    const { fromWeek, toWeek } = req.query;
+
+    if (!fromWeek || !toWeek) {
+      return res.status(400).json({
+        success: false,
+        error: 'fromWeek and toWeek query parameters are required',
+      });
+    }
+
+    const weeklyData = await getWeeklyRevenueByPlatform({ fromWeek, toWeek });
+
+    res.json({
+      success: true,
+      data: weeklyData,
+      fromWeek,
+      toWeek,
+    });
+  } catch (error) {
+    console.error('Weekly revenue error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch weekly revenue',
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * GET /api/dashboard/brands/:platform
+ * Returns brand details for a specific platform
+ */
+export const getBrandsByPlatform = async (req, res) => {
   try {
     const { platform } = req.params;
 
-    const platformBrands = brands.filter(b => b.platform === platform);
-    const brandDetails = platformBrands.map(brand => {
-      const brandTransactions = transactions.filter(t => t.brandId === brand.id);
+    const { platforms } = await getPlatformPerformanceData();
+    const platformData = platforms.find(p => p.name === platform);
 
-      const revenue = brandTransactions.reduce((sum, t) => sum + t.revenue, 0);
-      const gmv = brandTransactions.reduce((sum, t) => sum + t.gmv, 0);
-      const quantity = brandTransactions.reduce((sum, t) => sum + t.quantity, 0);
-
-      // Mock pacing calculation for brands
-      const brandTarget = platformTargets[platform] / platformBrands.length;
-      const pacing = calculatePacing(revenue, brandTarget);
-
-      return {
-        name: brand.name,
-        revenue,
-        gmv,
-        transactions: quantity,
-        pacing,
-        category: brand.category,
-      };
-    });
+    if (!platformData) {
+      return res.status(404).json({
+        success: false,
+        error: `Platform '${platform}' not found`,
+      });
+    }
 
     res.json({
-      platform,
-      brands: brandDetails,
+      success: true,
+      platform: platformData.name,
+      brands: platformData.brands,
+      summary: {
+        mtdRevenue: platformData.mtdRevenue,
+        mtdGmv: platformData.mtdGmv,
+        targetGmv: platformData.targetGmv,
+        pacing: platformData.pacing,
+        brandCount: platformData.brandCount,
+      },
     });
   } catch (error) {
     console.error('Brands by platform error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch brands',
+      message: error.message,
+    });
   }
 };
