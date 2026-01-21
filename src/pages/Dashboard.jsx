@@ -244,24 +244,35 @@ export default function Dashboard() {
     return labels[category] || category;
   };
 
-  // Helper to aggregate affiliate "Other" platforms
-  const getAffiliateWeeklyData = () => {
-    const affiliateData = weeklyData.filter(pw => {
-      const platform = platformData.find(p => p.name === pw.platform);
-      return platform?.category === 'affiliate';
-    });
+  // Helper to get organized weekly data (no category grouping)
+  const getOrganizedWeeklyData = () => {
+    // Define platforms to show explicitly
+    const mainPlatforms = ['Skimlinks', 'Impact', 'Howl', 'BrandAds'];
 
-    const namedAffiliates = ['Skimlinks', 'Impact', 'Howl', 'BrandAds', 'Skimbit'];
-    const named = affiliateData.filter(pw => namedAffiliates.includes(pw.platform));
-    const other = affiliateData.filter(pw => !namedAffiliates.includes(pw.platform));
+    // Platforms that go into "Other"
+    const otherPlatformNames = ['Awin', 'Partnerize', 'Connexity', 'Apple', 'Rakuten'];
+
+    // Get main platforms
+    const main = weeklyData.filter(pw => mainPlatforms.includes(pw.platform));
+
+    // Get "Other" platforms (affiliate platforms not in main list)
+    const otherPlatforms = weeklyData.filter(pw => {
+      const platform = platformData.find(p => p.name === pw.platform);
+      // Include if it's in otherPlatformNames OR if it's affiliate/attribution but not in main
+      return (
+        otherPlatformNames.includes(pw.platform) ||
+        (platform?.category === 'affiliate' && !mainPlatforms.includes(pw.platform) && !otherPlatformNames.includes(pw.platform)) ||
+        (platform?.category === 'attribution' && !mainPlatforms.includes(pw.platform) && !otherPlatformNames.includes(pw.platform))
+      );
+    });
 
     // Aggregate "Other" platforms
     let otherAggregate = null;
-    if (other.length > 0) {
-      const numWeeks = other[0]?.weeks?.length || 0;
+    if (otherPlatforms.length > 0) {
+      const numWeeks = otherPlatforms[0]?.weeks?.length || 0;
       const aggregatedWeeks = Array(numWeeks).fill(0);
 
-      other.forEach(pw => {
+      otherPlatforms.forEach(pw => {
         pw.weeks.forEach((revenue, idx) => {
           aggregatedWeeks[idx] += revenue;
         });
@@ -269,14 +280,13 @@ export default function Dashboard() {
 
       otherAggregate = {
         platform: 'Other',
-        category: 'affiliate',
         weeks: aggregatedWeeks,
         isAggregate: true,
-        details: other
+        details: otherPlatforms
       };
     }
 
-    return { named, otherAggregate };
+    return { main, otherAggregate };
   };
 
   // Helper to aggregate flat fee platforms
@@ -361,10 +371,10 @@ export default function Dashboard() {
                 {formatCurrency(monthSummary.totalRevenue)} / {formatCurrency(monthSummary.totalTarget)}
               </div>
               {(() => {
-                const achievementPct = (monthSummary.totalRevenue / monthSummary.totalTarget) * 100;
+                const percentOfGoal = (monthSummary.totalRevenue / monthSummary.totalTarget) * 100;
                 return (
-                  <div className={`text-lg font-semibold mt-1 ${getPacingColor(achievementPct)}`}>
-                    {formatPercentage(achievementPct, 1)}
+                  <div className={`text-lg font-semibold mt-1 ${getPacingColor(percentOfGoal)}`}>
+                    {formatPercentage(percentOfGoal, 1)} of goal
                   </div>
                 );
               })()}
@@ -459,25 +469,14 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {/* Attribution Partners */}
+                  {/* Main platforms (no category grouping) */}
                   {(() => {
-                    const categoryPlatforms = weeklyData.filter(pw => {
-                      const platform = platformData.find(p => p.name === pw.platform);
-                      return platform?.category === 'attribution';
-                    });
-
-                    if (categoryPlatforms.length === 0) return null;
+                    const { main, otherAggregate } = getOrganizedWeeklyData();
 
                     return (
-                      <React.Fragment key="attribution">
-                        <tr className="bg-gray-100">
-                          <td colSpan={displayWeeks.length + 1} className="px-6 py-2">
-                            <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                              {getCategoryLabel('attribution')}
-                            </div>
-                          </td>
-                        </tr>
-                        {categoryPlatforms.map((platformWeekly) => {
+                      <>
+                        {/* Main platforms */}
+                        {main.map((platformWeekly) => {
                           const weeks = platformWeekly.weeks || [];
                           const reversedWeeks = [...weeks].reverse();
                           return (
@@ -512,61 +511,8 @@ export default function Dashboard() {
                             </tr>
                           );
                         })}
-                      </React.Fragment>
-                    );
-                  })()}
 
-                  {/* Affiliate Partners */}
-                  {(() => {
-                    const { named, otherAggregate } = getAffiliateWeeklyData();
-                    if (named.length === 0 && !otherAggregate) return null;
-
-                    return (
-                      <React.Fragment key="affiliate">
-                        <tr className="bg-gray-100">
-                          <td colSpan={displayWeeks.length + 1} className="px-6 py-2">
-                            <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                              {getCategoryLabel('affiliate')}
-                            </div>
-                          </td>
-                        </tr>
-                        {/* Named affiliate platforms */}
-                        {named.map((platformWeekly) => {
-                          const weeks = platformWeekly.weeks || [];
-                          const reversedWeeks = [...weeks].reverse();
-                          return (
-                            <tr key={platformWeekly.platform} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                                {platformWeekly.platform}
-                              </td>
-                              {reversedWeeks.map((revenue, idx) => {
-                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
-                                const wowGrowth = previousRevenue
-                                  ? calculateWoWGrowth(revenue, previousRevenue)
-                                  : null;
-
-                                return (
-                                  <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
-                                    <div className="font-semibold text-gray-900">
-                                      {formatCurrency(revenue)}
-                                    </div>
-                                    {wowGrowth !== null && (
-                                      <div
-                                        className={`text-xs font-medium ${
-                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                        }`}
-                                      >
-                                        {wowGrowth >= 0 ? '+' : ''}
-                                        {formatPercentage(wowGrowth, 1)}
-                                      </div>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                        {/* "Other" aggregate row */}
+                        {/* "Other" aggregate row with expandable details */}
                         {otherAggregate && (
                           <>
                             <tr
@@ -646,100 +592,93 @@ export default function Dashboard() {
                             })}
                           </>
                         )}
-                      </React.Fragment>
-                    );
-                  })()}
 
-                  {/* Flat Fee Partnerships (single aggregated row) */}
-                  {(() => {
-                    const flatFeeAggregate = getFlatFeeWeeklyData();
-                    if (!flatFeeAggregate) return null;
+                        {/* Flat Fee Deals (single aggregated row) */}
+                        {(() => {
+                          const flatFeeAggregate = getFlatFeeWeeklyData();
+                          if (!flatFeeAggregate) return null;
 
-                    return (
-                      <React.Fragment key="flatfee">
-                        <tr className="bg-gray-100">
-                          <td colSpan={displayWeeks.length + 1} className="px-6 py-2">
-                            <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                              {getCategoryLabel('flatfee')}
-                            </div>
-                          </td>
-                        </tr>
-                        <tr
-                          className="hover:bg-gray-50 cursor-pointer"
-                          onClick={() => setShowFlatFeeDetails(!showFlatFeeDetails)}
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                            <div className="flex items-center">
-                              {showFlatFeeDetails ? (
-                                <ChevronDown className="w-4 h-4 mr-2" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 mr-2" />
-                              )}
-                              Flat Fee Deals
-                            </div>
-                          </td>
-                          {[...flatFeeAggregate.weeks].reverse().map((revenue, idx) => {
-                            const reversedWeeks = [...flatFeeAggregate.weeks].reverse();
-                            const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
-                            const wowGrowth = previousRevenue
-                              ? calculateWoWGrowth(revenue, previousRevenue)
-                              : null;
-
-                            return (
-                              <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
-                                <div className="font-semibold text-gray-900">
-                                  {formatCurrency(revenue)}
-                                </div>
-                                {wowGrowth !== null && (
-                                  <div
-                                    className={`text-xs font-medium ${
-                                      wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                    }`}
-                                  >
-                                    {wowGrowth >= 0 ? '+' : ''}
-                                    {formatPercentage(wowGrowth, 1)}
-                                  </div>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                        {/* Expandable flat fee details */}
-                        {showFlatFeeDetails && flatFeeAggregate.details.map((detail) => {
-                          const reversedWeeks = [...detail.weeks].reverse();
                           return (
-                            <tr key={detail.platform} className="bg-gray-50 hover:bg-gray-100">
-                              <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
-                                {detail.platform}
-                              </td>
-                              {reversedWeeks.map((revenue, idx) => {
-                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
-                                const wowGrowth = previousRevenue
-                                  ? calculateWoWGrowth(revenue, previousRevenue)
-                                  : null;
-
-                                return (
-                                  <td key={idx} className="px-6 py-3 whitespace-nowrap text-right text-sm">
-                                    <div className="font-semibold text-gray-700">
-                                      {formatCurrency(revenue)}
-                                    </div>
-                                    {wowGrowth !== null && (
-                                      <div
-                                        className={`text-xs font-medium ${
-                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                        }`}
-                                      >
-                                        {wowGrowth >= 0 ? '+' : ''}
-                                        {formatPercentage(wowGrowth, 1)}
-                                      </div>
+                            <>
+                              <tr
+                                className="hover:bg-gray-50 cursor-pointer"
+                                onClick={() => setShowFlatFeeDetails(!showFlatFeeDetails)}
+                              >
+                                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                  <div className="flex items-center">
+                                    {showFlatFeeDetails ? (
+                                      <ChevronDown className="w-4 h-4 mr-2" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4 mr-2" />
                                     )}
-                                  </td>
+                                    Flat Fee Deals
+                                  </div>
+                                </td>
+                                {[...flatFeeAggregate.weeks].reverse().map((revenue, idx) => {
+                                  const reversedWeeks = [...flatFeeAggregate.weeks].reverse();
+                                  const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                  const wowGrowth = previousRevenue
+                                    ? calculateWoWGrowth(revenue, previousRevenue)
+                                    : null;
+
+                                  return (
+                                    <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
+                                      <div className="font-semibold text-gray-900">
+                                        {formatCurrency(revenue)}
+                                      </div>
+                                      {wowGrowth !== null && (
+                                        <div
+                                          className={`text-xs font-medium ${
+                                            wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                          }`}
+                                        >
+                                          {wowGrowth >= 0 ? '+' : ''}
+                                          {formatPercentage(wowGrowth, 1)}
+                                        </div>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                              {/* Expandable flat fee details */}
+                              {showFlatFeeDetails && flatFeeAggregate.details.map((detail) => {
+                                const reversedWeeks = [...detail.weeks].reverse();
+                                return (
+                                  <tr key={detail.platform} className="bg-gray-50 hover:bg-gray-100">
+                                    <td className="px-6 py-3 pl-12 whitespace-nowrap text-sm text-gray-700">
+                                      {detail.platform}
+                                    </td>
+                                    {reversedWeeks.map((revenue, idx) => {
+                                      const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                      const wowGrowth = previousRevenue
+                                        ? calculateWoWGrowth(revenue, previousRevenue)
+                                        : null;
+
+                                      return (
+                                        <td key={idx} className="px-6 py-3 whitespace-nowrap text-right text-sm">
+                                          <div className="font-semibold text-gray-700">
+                                            {formatCurrency(revenue)}
+                                          </div>
+                                          {wowGrowth !== null && (
+                                            <div
+                                              className={`text-xs font-medium ${
+                                                wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                              }`}
+                                            >
+                                              {wowGrowth >= 0 ? '+' : ''}
+                                              {formatPercentage(wowGrowth, 1)}
+                                            </div>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
                                 );
                               })}
-                            </tr>
+                            </>
                           );
-                        })}
-                      </React.Fragment>
+                        })()}
+                      </>
                     );
                   })()}
                 </tbody>
@@ -800,22 +739,13 @@ export default function Dashboard() {
                                       MTD Revenue
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Total Contract Revenue
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      GMV to Date
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Target GMV
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                                       % to Target
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      # days left
+                                      Pacing
                                     </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Pacing %
+                                      MTD GMV
                                     </th>
                                   </tr>
                                 </thead>
@@ -831,23 +761,14 @@ export default function Dashboard() {
                                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
                                         {formatCurrency(brand.mtdRevenue)}
                                       </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {formatCurrency(brand.totalContractRevenue)}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.mtdGmv > 0 ? formatCurrency(brand.mtdGmv) : '—'}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.targetGmv > 0 ? formatCurrency(brand.targetGmv) : '—'}
-                                      </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
                                         {brand.pctToTarget.toFixed(1)}%
                                       </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.daysLeft}
-                                      </td>
                                       <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPacingColor(brand.pacingPct)}`}>
                                         {brand.pacingPct.toFixed(1)}%
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                        {brand.mtdGmv > 0 ? formatCurrency(brand.mtdGmv) : '—'}
                                       </td>
                                     </tr>
                                   ))}
@@ -865,10 +786,113 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Flat Fee Performance Section */}
+        {(() => {
+          const flatFeePlatforms = getPlatformsByCategory('flatfee');
+          if (flatFeePlatforms.length === 0) return null;
+
+          const daysAccounted = getDaysAccounted();
+          const daysInMonth = getDaysInMonth();
+          const daysLeft = daysInMonth - daysAccounted;
+
+          // Aggregate all flat fee data
+          const flatFeeData = flatFeePlatforms.flatMap(platform => {
+            const topBrands = getTopBrandsForPlatform(platform);
+            return topBrands.map(brand => ({
+              platform: brand.brand, // Use brand name as platform
+              mtdRevenue: brand.mtdRevenue,
+              totalContractRevenue: brand.totalContractRevenue,
+              mtdGmv: brand.mtdGmv,
+              targetGmv: brand.targetGmv,
+              pctToTarget: brand.pctToTarget,
+              daysLeft: daysLeft,
+              pacingPct: brand.pacingPct,
+            }));
+          });
+
+          if (flatFeeData.length === 0) return null;
+
+          return (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Flat Fee Performance
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Combined flat fee partnership performance metrics
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Platform
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        MTD Revenue
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Total Contract Revenue
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        GMV to Date
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Target GMV
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        % to Target
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Days Left in Campaign
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Pacing
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {flatFeeData.map((item, idx) => (
+                      <tr key={`flatfee-${item.platform}-${idx}`} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {item.platform}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                          {formatCurrency(item.mtdRevenue)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                          {formatCurrency(item.totalContractRevenue)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                          {item.mtdGmv > 0 ? formatCurrency(item.mtdGmv) : '—'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                          {item.targetGmv > 0 ? formatCurrency(item.targetGmv) : '—'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                          {item.pctToTarget.toFixed(1)}%
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                          {item.daysLeft}
+                        </td>
+                        <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPacingColor(item.pacingPct)}`}>
+                          {item.pacingPct.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Formula Reference */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="text-sm text-blue-800">
-            <strong>Brand Pacing Formula:</strong> ((GMV to Date ÷ Days Accounted) × Days Left ÷ Target GMV) × 100
+            <strong>Pacing Formula:</strong> ((GMV to Date ÷ Days Accounted) × Days Left ÷ Target GMV) × 100
           </div>
           <div className="text-xs text-blue-600 mt-1">
             Finance Cycle: Weeks run Thursday to Wednesday
