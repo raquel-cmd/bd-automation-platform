@@ -342,8 +342,7 @@ export default function Dashboard() {
 
   // Get weeks for display (reversed - newest first)
   const weeks = getWeekRange(weekRangeStart, weekRangeEnd);
-  const displayWeeks = [...weeks].reverse();
-
+ const displayWeeks = weeks;
   return (
     <Layout>
       <div className="space-y-6">
