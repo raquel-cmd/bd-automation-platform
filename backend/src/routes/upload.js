@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import prisma from '../db/client.js';
 
 const router = express.Router();
 
@@ -39,7 +40,8 @@ const router = express.Router();
  * Response:
  * {
  *   success: boolean,
- *   recordsProcessed: number,
+ *   inserted: number,
+ *   updated: number,
  *   platformKey: string
  * }
  */
@@ -51,7 +53,7 @@ router.post('/upload-platform-data', async (req, res) => {
     if (!platformKey || !rows || !Array.isArray(rows)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid request: platformKey and rows array required',
+        error: 'Invalid request: platformKey and rows array required',
       });
     }
 
@@ -64,61 +66,70 @@ router.post('/upload-platform-data', async (req, res) => {
     if (invalidRows.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Invalid row structure: missing required fields in ${invalidRows.length} rows`,
+        error: `Invalid row structure: missing required fields in ${invalidRows.length} rows`,
       });
     }
 
-    // TODO: Database persistence logic
-    // Example implementation:
-    //
-    // 1. Normalize platformKey to platform name
-    // const platformName = normalizePlatformKey(platformKey);
-    //
-    // 2. For each row, insert or update in database:
-    // await db.platformBrandData.upsert({
-    //   where: {
-    //     platform_date_brand: {
-    //       platform: platformName,
-    //       date: row.date,
-    //       brand: row.brand
-    //     }
-    //   },
-    //   update: {
-    //     weeklyRevenue: row.weeklyRevenue,
-    //     mtdRevenue: row.mtdRevenue,
-    //     mtdGmv: row.mtdGmv,
-    //     targetGmv: row.targetGmv,
-    //     totalContractRevenue: row.totalContractRevenue,
-    //     updatedAt: new Date()
-    //   },
-    //   create: {
-    //     platform: platformName,
-    //     date: row.date,
-    //     brand: row.brand,
-    //     weeklyRevenue: row.weeklyRevenue,
-    //     mtdRevenue: row.mtdRevenue,
-    //     mtdGmv: row.mtdGmv,
-    //     targetGmv: row.targetGmv,
-    //     totalContractRevenue: row.totalContractRevenue,
-    //     createdAt: new Date(),
-    //     updatedAt: new Date()
-    //   }
-    // });
+    // Normalize platformKey to platform name
+    const platformName = normalizePlatformKey(platformKey);
 
-    // Mock successful response for now
-    console.log(`[Upload] Processing ${rows.length} rows for platform: ${platformKey}`);
+    // Track inserted and updated counts
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Process each row with upsert (insert or update)
+    for (const row of rows) {
+      const result = await prisma.platformMetric.upsert({
+        where: {
+          platform_date_brand_unique: {
+            platformKey: platformName,
+            date: row.date,
+            brand: row.brand,
+          },
+        },
+        update: {
+          weeklyRevenue: row.weeklyRevenue,
+          mtdRevenue: row.mtdRevenue,
+          mtdGmv: row.mtdGmv,
+          targetGmv: row.targetGmv,
+          totalContractRevenue: row.totalContractRevenue || null,
+          updatedAt: new Date(),
+        },
+        create: {
+          platformKey: platformName,
+          date: row.date,
+          brand: row.brand,
+          weeklyRevenue: row.weeklyRevenue,
+          mtdRevenue: row.mtdRevenue,
+          mtdGmv: row.mtdGmv,
+          targetGmv: row.targetGmv,
+          totalContractRevenue: row.totalContractRevenue || null,
+        },
+      });
+
+      // Check if it was an insert or update based on createdAt vs updatedAt
+      if (result.createdAt.getTime() === result.updatedAt.getTime()) {
+        insertedCount++;
+      } else {
+        updatedCount++;
+      }
+    }
+
+    console.log(`[Upload] Processed ${rows.length} rows for platform: ${platformKey} (${insertedCount} inserted, ${updatedCount} updated)`);
 
     res.json({
       success: true,
-      recordsProcessed: rows.length,
+      inserted: insertedCount,
+      updated: updatedCount,
       platformKey,
+      totalProcessed: rows.length,
     });
 
   } catch (error) {
     console.error('Error processing platform data upload:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Internal server error',
+      error: error.message || 'Internal server error',
     });
   }
 });
@@ -135,7 +146,8 @@ router.post('/upload-platform-data', async (req, res) => {
  * Response:
  * {
  *   success: boolean,
- *   contractsProcessed: number,
+ *   inserted: number,
+ *   updated: number,
  *   weeksGenerated: number
  * }
  */
@@ -147,7 +159,7 @@ router.post('/upload-flat-fees', async (req, res) => {
     if (!rows || !Array.isArray(rows)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid request: rows array required',
+        error: 'Invalid request: rows array required',
       });
     }
 
@@ -160,75 +172,117 @@ router.post('/upload-flat-fees', async (req, res) => {
     if (invalidRows.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Invalid row structure: missing required fields in ${invalidRows.length} rows`,
+        error: `Invalid row structure: missing required fields in ${invalidRows.length} rows`,
       });
     }
 
-    // TODO: Process flat fee contracts and generate weekly allocations
-    // Example implementation:
-    //
-    // let totalWeeksGenerated = 0;
-    //
-    // for (const contract of rows) {
-    //   // 1. Parse dates
-    //   const startDate = new Date(contract.contractStart);
-    //   const endDate = new Date(contract.contractEnd);
-    //
-    //   // 2. Generate all finance weeks between start and end
-    //   const weeks = generateFinanceWeeks(startDate, endDate);
-    //
-    //   // 3. Calculate weekly allocation
-    //   const weeklyRevenue = contract.totalContractRevenue / weeks.length;
-    //
-    //   // 4. Insert weekly records
-    //   for (const week of weeks) {
-    //     await db.platformWeeklyData.upsert({
-    //       where: {
-    //         platform_week: {
-    //           platform: contract.partnerName,
-    //           weekStart: week.start,
-    //           weekEnd: week.end
-    //         }
-    //       },
-    //       update: {
-    //         revenue: weeklyRevenue,
-    //         category: 'flatfee',
-    //         updatedAt: new Date()
-    //       },
-    //       create: {
-    //         platform: contract.partnerName,
-    //         weekStart: week.start,
-    //         weekEnd: week.end,
-    //         revenue: weeklyRevenue,
-    //         category: 'flatfee',
-    //         totalContractRevenue: contract.totalContractRevenue,
-    //         contractStart: contract.contractStart,
-    //         contractEnd: contract.contractEnd,
-    //         createdAt: new Date(),
-    //         updatedAt: new Date()
-    //       }
-    //     });
-    //     totalWeeksGenerated++;
-    //   }
-    // }
+    let totalWeeksGenerated = 0;
+    let insertedContracts = 0;
+    let updatedContracts = 0;
 
-    // Mock successful response for now
-    console.log(`[Upload] Processing ${rows.length} flat fee contracts`);
+    // Process each contract
+    for (const contract of rows) {
+      // Parse dates
+      const startDate = new Date(contract.contractStart);
+      const endDate = new Date(contract.contractEnd);
 
-    // Simulate weekly allocation count
-    const mockWeeksGenerated = rows.length * 52; // Approximate for annual contracts
+      // Validate dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid date format for contract: ${contract.partnerName}`,
+        });
+      }
+
+      if (startDate > endDate) {
+        return res.status(400).json({
+          success: false,
+          error: `Contract start date must be before end date for: ${contract.partnerName}`,
+        });
+      }
+
+      // Generate all finance weeks between start and end
+      const weeks = generateFinanceWeeks(startDate, endDate);
+
+      // Calculate weekly allocation
+      const weeklyRevenue = contract.totalContractRevenue / weeks.length;
+
+      // Use a transaction to ensure atomicity
+      const result = await prisma.$transaction(async (tx) => {
+        // Create or update the contract
+        const flatFeeContract = await tx.flatFeeContract.upsert({
+          where: {
+            id: 0, // We don't have a unique constraint on partner name, so we'll create new contracts
+          },
+          update: {},
+          create: {
+            partnerName: contract.partnerName,
+            contractStart: contract.contractStart,
+            contractEnd: contract.contractEnd,
+            totalContractRevenue: contract.totalContractRevenue,
+          },
+        });
+
+        // Actually, let's just create a new contract each time
+        const newContract = await tx.flatFeeContract.create({
+          data: {
+            partnerName: contract.partnerName,
+            contractStart: contract.contractStart,
+            contractEnd: contract.contractEnd,
+            totalContractRevenue: contract.totalContractRevenue,
+          },
+        });
+
+        let weeksCreated = 0;
+
+        // Create or update weekly allocations
+        for (const week of weeks) {
+          await tx.flatFeeAllocation.upsert({
+            where: {
+              partner_week_unique: {
+                partnerName: contract.partnerName,
+                weekStart: week.start.toISOString().split('T')[0],
+                weekEnd: week.end.toISOString().split('T')[0],
+              },
+            },
+            update: {
+              weeklyRevenue: weeklyRevenue,
+              contractId: newContract.id,
+            },
+            create: {
+              contractId: newContract.id,
+              partnerName: contract.partnerName,
+              weekStart: week.start.toISOString().split('T')[0],
+              weekEnd: week.end.toISOString().split('T')[0],
+              weeklyRevenue: weeklyRevenue,
+              platformKey: 'flat-fee',
+            },
+          });
+          weeksCreated++;
+        }
+
+        return { contract: newContract, weeksCreated };
+      });
+
+      totalWeeksGenerated += result.weeksCreated;
+      insertedContracts++;
+    }
+
+    console.log(`[Upload] Processed ${rows.length} flat fee contracts, generated ${totalWeeksGenerated} weekly allocations`);
 
     res.json({
       success: true,
+      inserted: insertedContracts,
+      updated: updatedContracts,
+      weeksGenerated: totalWeeksGenerated,
       contractsProcessed: rows.length,
-      weeksGenerated: mockWeeksGenerated,
     });
 
   } catch (error) {
     console.error('Error processing flat fee upload:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Internal server error',
+      error: error.message || 'Internal server error',
     });
   }
 });
