@@ -6,7 +6,7 @@
 import { PrismaClient } from '@prisma/client';
 
 const prismaClientSingleton = () => {
-  return new PrismaClient();
+  return new PrismaClient{};
 };
 
 // Use globalThis to store the Prisma client instance
