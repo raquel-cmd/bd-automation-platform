@@ -3,9 +3,10 @@
  * Singleton instance for database connections
  */
 
-import { PrismaClient } from '@prisma/client';
+import PrismaClientModule from '@prisma/client';
 const prismaClientSingleton = () => {
   return new PrismaClient({
+const PrismaClient = PrismaClientModule.PrismaClient || PrismaClientModule;
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 };
