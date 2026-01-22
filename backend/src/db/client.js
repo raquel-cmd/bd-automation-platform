@@ -4,9 +4,9 @@
  */
 
 import PrismaClientModule from '@prisma/client';
+const PrismaClient = PrismaClientModule.PrismaClient || PrismaClientModule;
 const prismaClientSingleton = () => {
   return new PrismaClient({
-const PrismaClient = PrismaClientModule.PrismaClient || PrismaClientModule;
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 };
