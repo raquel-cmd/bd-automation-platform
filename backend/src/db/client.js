@@ -3,12 +3,10 @@
  * Singleton instance for database connections
  */
 
-import { PrismaClient as PrismaClientModule } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prismaClientSingleton = () => {
-  return new PrismaClientModule({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']
-  });
+  return new PrismaClient();
 };
 
 // Use globalThis to store the Prisma client instance
@@ -21,8 +19,3 @@ export default prisma;
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
-
-// Graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
-});
