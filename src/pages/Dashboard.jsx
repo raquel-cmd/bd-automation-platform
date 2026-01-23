@@ -380,20 +380,90 @@ export default function Dashboard() {
           {
             name: 'Flat Fee Partnerships',
             mtdRevenue: 84000, // Sum of Dyson (35000) + Other Flat Fee (49000)
-            mtdGMV: 0,
+            mtdGMV: 2850000, // Total GMV to date (placeholder)
             target: 84417, // Sum of targets
             weekRevenue: 20750, // Sum of week revenues
             weekGMV: 0,
             transactions: 9, // Sum of transactions
             brands: 13, // Sum of brands
             category: 'flatfee',
+            contractRevenue: 84000, // Total contract revenue
+            gmvToDate: 2850000, // GMV sold to date (placeholder - client will provide)
+            targetGMV: 3500000, // Target GMV (placeholder - client will provide)
+            campaignEndDate: '2026-01-31', // Campaign end date (placeholder - client will provide)
             brandDetails: [
-              { name: 'Dyson', revenue: 35000, gmv: 0, transactions: 1, target: 35000, weekRevenue: 8750 },
-              { name: 'Samsung Sponsorship', revenue: 15000, gmv: 0, transactions: 1, target: 15000, weekRevenue: 3750 },
-              { name: 'LG Partnership', revenue: 18000, gmv: 0, transactions: 1, target: 18000, weekRevenue: 4500 },
-              { name: 'Sony Deal', revenue: 16000, gmv: 0, transactions: 1, target: 16417, weekRevenue: 4000 },
-              { name: 'Brand A', revenue: 8000, gmv: 0, transactions: 2, target: 8000, weekRevenue: 2000 },
-              { name: 'Brand B', revenue: 5000, gmv: 0, transactions: 3, target: 5000, weekRevenue: 1250 },
+              {
+                name: 'Dyson',
+                revenue: 35000,
+                gmv: 1200000,
+                transactions: 1,
+                target: 35000,
+                weekRevenue: 8750,
+                contractRevenue: 35000,
+                gmvToDate: 1200000,
+                targetGMV: 1500000,
+                campaignEndDate: '2026-01-31'
+              },
+              {
+                name: 'Samsung Sponsorship',
+                revenue: 15000,
+                gmv: 650000,
+                transactions: 1,
+                target: 15000,
+                weekRevenue: 3750,
+                contractRevenue: 15000,
+                gmvToDate: 650000,
+                targetGMV: 750000,
+                campaignEndDate: '2026-01-31'
+              },
+              {
+                name: 'LG Partnership',
+                revenue: 18000,
+                gmv: 550000,
+                transactions: 1,
+                target: 18000,
+                weekRevenue: 4500,
+                contractRevenue: 18000,
+                gmvToDate: 550000,
+                targetGMV: 650000,
+                campaignEndDate: '2026-01-31'
+              },
+              {
+                name: 'Sony Deal',
+                revenue: 16000,
+                gmv: 300000,
+                transactions: 1,
+                target: 16417,
+                weekRevenue: 4000,
+                contractRevenue: 16417,
+                gmvToDate: 300000,
+                targetGMV: 400000,
+                campaignEndDate: '2026-01-31'
+              },
+              {
+                name: 'Brand A',
+                revenue: 8000,
+                gmv: 100000,
+                transactions: 2,
+                target: 8000,
+                weekRevenue: 2000,
+                contractRevenue: 8000,
+                gmvToDate: 100000,
+                targetGMV: 120000,
+                campaignEndDate: '2026-01-31'
+              },
+              {
+                name: 'Brand B',
+                revenue: 5000,
+                gmv: 50000,
+                transactions: 3,
+                target: 5000,
+                weekRevenue: 1250,
+                contractRevenue: 5000,
+                gmvToDate: 50000,
+                targetGMV: 80000,
+                campaignEndDate: '2026-01-31'
+              },
             ],
           },
         ],
@@ -816,8 +886,92 @@ export default function Dashboard() {
                               )}
                             </div>
 
-                            {/* Main Platform Brands Table */}
-                            {topBrands.length > 0 && (
+                            {/* Flat Fee Partnerships - Special Table */}
+                            {platform.category === 'flatfee' && topBrands.length > 0 && (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-gray-50">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Platform
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        MTD Revenue
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        Total Contract Revenue
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        GMV to Date
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        Target GMV
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        % to Target
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        Days Left
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        Pacing %
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {topBrands.map((brand, idx) => {
+                                      const today = new Date();
+                                      const campaignEnd = brand.campaignEndDate ? new Date(brand.campaignEndDate) : new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                                      const daysLeft = Math.max(0, Math.ceil((campaignEnd - today) / (1000 * 60 * 60 * 24)));
+                                      const daysAccounted = getDaysAccounted();
+
+                                      // GMV-based pacing: (GMV to date ÷ Days Accounted) × Days left ÷ Target GMV × 100
+                                      const gmvPacing = brand.targetGMV && daysAccounted > 0
+                                        ? ((brand.gmvToDate / daysAccounted) * daysLeft / brand.targetGMV) * 100
+                                        : null;
+
+                                      const percentToTarget = brand.targetGMV ? (brand.gmvToDate / brand.targetGMV) * 100 : null;
+
+                                      return (
+                                        <tr key={`${platform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
+                                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {brand.name}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                                            {formatCurrency(brand.revenue)}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {brand.contractRevenue ? formatCurrency(brand.contractRevenue) : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {brand.gmvToDate ? formatCurrency(brand.gmvToDate) : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {brand.targetGMV ? formatCurrency(brand.targetGMV) : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {percentToTarget !== null ? (
+                                              <div className={percentToTarget >= 100 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                                {formatPercentage(percentToTarget, 1)}
+                                              </div>
+                                            ) : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {daysLeft} days
+                                          </td>
+                                          <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${gmvPacing ? getPacingColor(gmvPacing) : 'text-gray-400'}`}>
+                                            {gmvPacing !== null ? formatPercentage(gmvPacing, 1) : '—'}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {/* Main Platform Brands Table (for non-flatfee) */}
+                            {platform.category !== 'flatfee' && topBrands.length > 0 && (
                               <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                   <thead className="bg-gray-50">
