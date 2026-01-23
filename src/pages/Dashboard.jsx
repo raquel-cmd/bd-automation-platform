@@ -384,8 +384,9 @@ export default function Dashboard() {
               <div className="text-2xl font-bold text-gray-900 mt-1">
                 {formatCurrency(monthSummary.totalRevenue)} / {formatCurrency(monthSummary.totalTarget)}
               </div>
-              <div className={`text-lg font-semibold mt-1 ${getPacingColor(monthSummary.overallPacing)}`}>
-                {formatPercentage(monthSummary.overallPacing, 1)}
+              <div className="text-sm text-gray-500 mt-2">% of Goal</div>
+              <div className={`text-lg font-semibold ${getPacingColor((monthSummary.totalRevenue / monthSummary.totalTarget) * 100)}`}>
+                {formatPercentage((monthSummary.totalRevenue / monthSummary.totalTarget) * 100, 2)}
               </div>
               <ProgressBar
                 value={monthSummary.totalRevenue}
@@ -517,9 +518,8 @@ export default function Dashboard() {
                                     </div>
                                     {wowGrowth !== null && (
                                       <div
-                                        className={`text-xs font-medium ${
-                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                        }`}
+                                        className={`text-xs font-medium ${wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                          }`}
                                       >
                                         {wowGrowth >= 0 ? '+' : ''}
                                         {formatPercentage(wowGrowth, 1)}
