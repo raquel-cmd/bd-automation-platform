@@ -467,13 +467,13 @@ export default function Dashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Platform
                     </th>
-                    {getWeekRange(weekRangeStart, weekRangeEnd).map((week, idx) => (
+                    {getWeekRange(weekRangeStart, weekRangeEnd).reverse().map((week, idx) => (
                       <th
                         key={idx}
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         <div>{week.label}</div>
-                        {idx > 0 && <div className="text-xs text-gray-400">WoW %</div>}
+                        {idx < getWeekRange(weekRangeStart, weekRangeEnd).length - 1 && <div className="text-xs text-gray-400">WoW %</div>}
                       </th>
                     ))}
                   </tr>
@@ -499,14 +499,14 @@ export default function Dashboard() {
                         </tr>
                         {/* Platform Rows */}
                         {categoryPlatforms.map((platformWeekly) => {
-                          const weeks = platformWeekly.weeks || [];
+                          const weeks = [...(platformWeekly.weeks || [])].reverse();
                           return (
                             <tr key={platformWeekly.platform} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                                 {platformWeekly.platform}
                               </td>
                               {weeks.map((revenue, idx) => {
-                                const previousRevenue = idx > 0 ? weeks[idx - 1] : null;
+                                const previousRevenue = idx < weeks.length - 1 ? weeks[idx + 1] : null;
                                 const wowGrowth = previousRevenue
                                   ? calculateWoWGrowth(revenue, previousRevenue)
                                   : null;
