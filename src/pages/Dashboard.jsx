@@ -378,30 +378,17 @@ export default function Dashboard() {
           },
           // Flat Fee Partnerships
           {
-            name: 'Dyson',
-            mtdRevenue: 35000,
+            name: 'Flat Fee Partnerships',
+            mtdRevenue: 84000, // Sum of Dyson (35000) + Other Flat Fee (49000)
             mtdGMV: 0,
-            target: 35000,
-            weekRevenue: 8750,
+            target: 84417, // Sum of targets
+            weekRevenue: 20750, // Sum of week revenues
             weekGMV: 0,
-            transactions: 1,
-            brands: 1,
+            transactions: 9, // Sum of transactions
+            brands: 13, // Sum of brands
             category: 'flatfee',
             brandDetails: [
               { name: 'Dyson', revenue: 35000, gmv: 0, transactions: 1, target: 35000, weekRevenue: 8750 },
-            ],
-          },
-          {
-            name: 'Other Flat Fee',
-            mtdRevenue: 49000,
-            mtdGMV: 0,
-            target: 49417,
-            weekRevenue: 12000,
-            weekGMV: 0,
-            transactions: 8,
-            brands: 12,
-            category: 'flatfee',
-            brandDetails: [
               { name: 'Samsung Sponsorship', revenue: 15000, gmv: 0, transactions: 1, target: 15000, weekRevenue: 3750 },
               { name: 'LG Partnership', revenue: 18000, gmv: 0, transactions: 1, target: 18000, weekRevenue: 4500 },
               { name: 'Sony Deal', revenue: 16000, gmv: 0, transactions: 1, target: 16417, weekRevenue: 4000 },
