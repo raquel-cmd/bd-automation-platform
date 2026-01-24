@@ -986,53 +986,27 @@ export default function Dashboard() {
                                         MTD Revenue
                                       </th>
                                       <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                        $% to Target
-                                      </th>
-                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                        Pacing %
-                                      </th>
-                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                                         MTD GMV
                                       </th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
-                                    {topBrands.map((brand, idx) => {
-                                      const toTarget = brand.target ? brand.target - brand.revenue : null;
-                                      const percentOfTarget = brand.target ? (brand.revenue / brand.target) * 100 : null;
-
-                                      return (
-                                        <tr key={`${platform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
-                                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {brand.name}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                            {brand.weekRevenue ? formatCurrency(brand.weekRevenue) : '—'}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
-                                            {formatCurrency(brand.revenue)}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                            {brand.target ? (
-                                              <div>
-                                                <div className={toTarget > 0 ? 'text-red-600' : 'text-green-600'}>
-                                                  {toTarget > 0 ? formatCurrency(toTarget) : formatCurrency(Math.abs(toTarget))}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                  {formatPercentage(percentOfTarget, 1)}
-                                                </div>
-                                              </div>
-                                            ) : '—'}
-                                          </td>
-                                          <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${brand.pacing ? getPacingColor(brand.pacing) : 'text-gray-400'}`}>
-                                            {brand.pacing ? formatPercentage(brand.pacing, 1) : '—'}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                            {brand.gmv > 0 ? formatCurrency(brand.gmv) : '—'}
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
+                                    {topBrands.map((brand, idx) => (
+                                      <tr key={`${platform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                          {brand.name}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                          {brand.weekRevenue ? formatCurrency(brand.weekRevenue) : '—'}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                                          {formatCurrency(brand.revenue)}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                          {brand.gmv > 0 ? formatCurrency(brand.gmv) : '—'}
+                                        </td>
+                                      </tr>
+                                    ))}
                                   </tbody>
                                 </table>
                               </div>
@@ -1062,53 +1036,27 @@ export default function Dashboard() {
                                             MTD Revenue
                                           </th>
                                           <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                            $% to Target
-                                          </th>
-                                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                            Pacing %
-                                          </th>
-                                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                                             MTD GMV
                                           </th>
                                         </tr>
                                       </thead>
                                       <tbody className="bg-white divide-y divide-gray-200">
-                                        {subBrands.map((brand, idx) => {
-                                          const toTarget = brand.target ? brand.target - brand.revenue : null;
-                                          const percentOfTarget = brand.target ? (brand.revenue / brand.target) * 100 : null;
-
-                                          return (
-                                            <tr key={`${subPlatform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
-                                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">
-                                                {brand.name}
-                                              </td>
-                                              <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                                {brand.weekRevenue ? formatCurrency(brand.weekRevenue) : '—'}
-                                              </td>
-                                              <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-700">
-                                                {formatCurrency(brand.revenue)}
-                                              </td>
-                                              <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                                {brand.target ? (
-                                                  <div>
-                                                    <div className={toTarget > 0 ? 'text-red-600' : 'text-green-600'}>
-                                                      {toTarget > 0 ? formatCurrency(toTarget) : formatCurrency(Math.abs(toTarget))}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500">
-                                                      {formatPercentage(percentOfTarget, 1)}
-                                                    </div>
-                                                  </div>
-                                                ) : '—'}
-                                              </td>
-                                              <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${brand.pacing ? getPacingColor(brand.pacing) : 'text-gray-400'}`}>
-                                                {brand.pacing ? formatPercentage(brand.pacing, 1) : '—'}
-                                              </td>
-                                              <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                                {brand.gmv > 0 ? formatCurrency(brand.gmv) : '—'}
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
+                                        {subBrands.map((brand, idx) => (
+                                          <tr key={`${subPlatform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">
+                                              {brand.name}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                              {brand.weekRevenue ? formatCurrency(brand.weekRevenue) : '—'}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-700">
+                                              {formatCurrency(brand.revenue)}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                              {brand.gmv > 0 ? formatCurrency(brand.gmv) : '—'}
+                                            </td>
+                                          </tr>
+                                        ))}
                                       </tbody>
                                     </table>
                                   </div>
