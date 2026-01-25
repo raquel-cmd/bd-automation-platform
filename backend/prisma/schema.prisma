@@ -6,55 +6,24 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // Platform metrics from CSV uploads
 model PlatformMetric {
-  id                    Int      @id @default(autoincrement())
-  platformKey           String   @map("platform_key")
-  date                  String   // ISO date string
-  brand                 String
-  weeklyRevenue         Float    @map("weekly_revenue")
-  mtdRevenue            Float    @map("mtd_revenue")
-  mtdGmv                Float    @map("mtd_gmv")
-  targetGmv             Float    @map("target_gmv")
-  totalContractRevenue  Float?   @map("total_contract_revenue")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                   Int      @id @default(autoincrement())
+  platformKey          String   @map("platform_key")
+  date                 String   // ISO date string
+  brand                String
+  weeklyRevenue        Float    @map("weekly_revenue")
+  mtdRevenue           Float    @map("mtd_revenue")
+  mtdGmv               Float    @map("mtd_gmv")
+  targetGmv            Float    @map("target_gmv")
+  totalContractRevenue Float?   @map("total_contract_revenue")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@unique([platformKey, date, brand], name: "platform_date_brand_unique")
   @@map("platform_metrics")
-}
-
-// Flat fee contracts
-model FlatFeeContract {
-  id                    Int      @id @default(autoincrement())
-  partnerName           String   @map("partner_name")
-  contractStart         String   @map("contract_start") // ISO date string
-  contractEnd           String   @map("contract_end")   // ISO date string
-  totalContractRevenue  Float    @map("total_contract_revenue")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
-
-  allocations           FlatFeeAllocation[]
-
-  @@map("flat_fee_contracts")
-}
-
-// Weekly allocations for flat fee contracts
-model FlatFeeAllocation {
-  id                    Int      @id @default(autoincrement())
-  contractId            Int      @map("contract_id")
-  partnerName           String   @map("partner_name")
-  weekStart             String   @map("week_start")  // ISO date string
-  weekEnd               String   @map("week_end")    // ISO date string
-  weeklyRevenue         Float    @map("weekly_revenue")
-  platformKey           String   @default("flat-fee") @map("platform_key")
-  createdAt             DateTime @default(now()) @map("created_at")
-
-  contract              FlatFeeContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-
-  @@unique([partnerName, weekStart, weekEnd], name: "partner_week_unique")
-  @@map("flat_fee_allocations")
 }
