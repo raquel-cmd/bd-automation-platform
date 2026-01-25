@@ -26,4 +26,5 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "prisma":  "^5.20.0"
+      }
 }
