@@ -135,11 +135,7 @@ export const insights = {
  * Admin functions
  */
 export const admin = {
-  uploadCSV: async (file, platform) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('platform', platform);
-
+  uploadCSV: async (formData) => {
     const token = localStorage.getItem('token');
 
     const response = await fetch(`${API_BASE_URL}/api/admin/upload`, {
@@ -151,14 +147,15 @@ export const admin = {
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      const error = await response.json();
+      throw new Error(error.message || 'Upload failed');
     }
 
     return response.json();
   },
 
   getUploadHistory: async () => {
-    return fetchAPI('/api/admin/upload-history');
+    return fetchAPI('/api/admin/history');
   },
 };
 

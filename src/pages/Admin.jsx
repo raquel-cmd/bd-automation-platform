@@ -31,49 +31,11 @@ export default function Admin() {
 
   const fetchUploadHistory = async () => {
     try {
-      // Mock data for demonstration
-      const mockHistory = [
-        {
-          id: 1,
-          filename: 'skimlinks_november_2025.csv',
-          platform: 'Skimlinks',
-          uploadDate: new Date('2025-11-15'),
-          status: 'success',
-          recordsProcessed: 237,
-          uploadedBy: 'admin',
-        },
-        {
-          id: 2,
-          filename: 'creator_connections_november_2025.csv',
-          platform: 'Creator Connections',
-          uploadDate: new Date('2025-11-14'),
-          status: 'success',
-          recordsProcessed: 412,
-          uploadedBy: 'admin',
-        },
-        {
-          id: 3,
-          filename: 'flat_fee_november_2025.csv',
-          platform: 'Flat Fee',
-          uploadDate: new Date('2025-11-13'),
-          status: 'success',
-          recordsProcessed: 8,
-          uploadedBy: 'admin',
-        },
-        {
-          id: 4,
-          filename: 'skimlinks_october_2025.csv',
-          platform: 'Skimlinks',
-          uploadDate: new Date('2025-10-31'),
-          status: 'success',
-          recordsProcessed: 285,
-          uploadedBy: 'admin',
-        },
-      ];
-
-      setUploadHistory(mockHistory);
+      const response = await admin.getUploadHistory();
+      setUploadHistory(response.history || []);
     } catch (error) {
       console.error('Error fetching upload history:', error);
+      setUploadHistory([]);
     }
   };
 
@@ -106,24 +68,20 @@ export default function Admin() {
     });
 
     try {
-      // Simulate upload delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('platform', selectedPlatform);
 
-      // Mock successful upload
-      const newRecord = {
-        id: uploadHistory.length + 1,
-        filename: selectedFile.name,
-        platform: selectedPlatform,
-        uploadDate: new Date(),
-        status: 'success',
-        recordsProcessed: Math.floor(Math.random() * 500) + 100,
-        uploadedBy: 'admin',
-      };
+      // Upload to backend
+      const response = await admin.uploadCSV(formData);
 
-      setUploadHistory([newRecord, ...uploadHistory]);
+      // Refresh upload history
+      await fetchUploadHistory();
+
       setUploadStatus({
         type: 'success',
-        message: `Successfully uploaded ${selectedFile.name} - ${newRecord.recordsProcessed} records processed`,
+        message: response.message,
       });
       setSelectedFile(null);
       document.getElementById('file-upload').value = '';

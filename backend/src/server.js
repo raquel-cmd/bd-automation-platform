@@ -9,9 +9,13 @@ import dashboardRoutes from './routes/dashboard.js';
 import brandsRoutes from './routes/brands.js';
 import transactionsRoutes from './routes/transactions.js';
 import insightsRoutes from './routes/insights.js';
+import uploadRoutes from './routes/upload.js';
 
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
+
+// Import database
+import { initializeDatabase } from './config/database.js';
 
 // Load environment variables
 dotenv.config();
@@ -47,6 +51,7 @@ app.use('/api/dashboard', authenticateToken, dashboardRoutes);
 app.use('/api/brands', authenticateToken, brandsRoutes);
 app.use('/api/transactions', authenticateToken, transactionsRoutes);
 app.use('/api/insights', authenticateToken, insightsRoutes);
+app.use('/api/admin', authenticateToken, uploadRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -100,7 +105,7 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║  BD Automation Platform API                               ║
@@ -109,6 +114,13 @@ app.listen(PORT, () => {
 ║  Health check: http://localhost:${PORT}/health              ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+
+  // Initialize database
+  try {
+    await initializeDatabase();
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+  }
 });
 
 export default app;
