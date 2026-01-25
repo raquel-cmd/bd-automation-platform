@@ -6,16 +6,23 @@ import { formatDate } from '../utils/dateUtils';
 
 export default function Admin() {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [selectedPlatform, setSelectedPlatform] = useState('Skimlinks');
+  const [selectedPlatform, setSelectedPlatform] = useState('Creator Connections');
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadHistory, setUploadHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const platforms = [
-    'Skimlinks',
     'Creator Connections',
+    'Levanta',
+    'Perch',
+    'PartnerBoost',
+    'Archer',
+    'Skimlinks',
+    'Impact',
+    'Howl',
+    'BrandAds',
+    'Other',
     'Flat Fee',
-    'Other Attribution',
   ];
 
   useEffect(() => {
