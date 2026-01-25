@@ -1,48 +1,87 @@
-import { brands, transactions, platformTargets } from '../data/mockData.js';
+import pool from '../config/database.js';
 import { calculatePacing, getDaysInMonth, getDaysAccounted } from '../utils/dateUtils.js';
 
-export const getOverview = (req, res) => {
+// Platform targets (monthly) - TODO: Move to database table
+const platformTargets = {
+  'Creator Connections': 225000,
+  'Levanta': 50000,
+  'Perch': 40000,
+  'PartnerBoost': 35000,
+  'Archer': 30000,
+  'Skimlinks': 285000,
+  'Impact': 125000,
+  'Howl': 45000,
+  'BrandAds': 55000,
+  'Other': 20000,
+  'Flat Fee': 49417,
+};
+
+export const getOverview = async (req, res) => {
   try {
-    // Calculate platform aggregates
-    const platformData = {};
+    // Get current month's data from database
+    const result = await pool.query(`
+      SELECT 
+        platform,
+        SUM(revenue) as mtd_revenue,
+        SUM(gmv) as mtd_gmv,
+        SUM(transactions) as total_transactions,
+        COUNT(DISTINCT brand) as brand_count
+      FROM revenue_data
+      WHERE EXTRACT(MONTH FROM date) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      GROUP BY platform
+    `);
 
-    Object.keys(platformTargets).forEach(platform => {
-      const platformTransactions = transactions.filter(t => t.platform === platform);
-      const platformBrands = brands.filter(b => b.platform === platform);
+    // Get week revenue (last 7 days)
+    const weekResult = await pool.query(`
+      SELECT 
+        platform,
+        SUM(revenue) as week_revenue,
+        SUM(gmv) as week_gmv
+      FROM revenue_data
+      WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY platform
+    `);
 
-      const mtdRevenue = platformTransactions.reduce((sum, t) => sum + t.revenue, 0);
-      const mtdGMV = platformTransactions.reduce((sum, t) => sum + t.gmv, 0);
-      const totalTransactions = platformTransactions.reduce((sum, t) => sum + t.quantity, 0);
+    const weekData = {};
+    weekResult.rows.forEach(row => {
+      weekData[row.platform] = {
+        weekRevenue: parseFloat(row.week_revenue) || 0,
+        weekGMV: parseFloat(row.week_gmv) || 0,
+      };
+    });
 
-      // Calculate week revenue (mock - last 3 transactions)
-      const weekRevenue = platformTransactions.slice(0, 3).reduce((sum, t) => sum + t.revenue, 0);
-      const weekGMV = platformTransactions.slice(0, 3).reduce((sum, t) => sum + t.gmv, 0);
-
-      const target = platformTargets[platform];
+    // Build platform data
+    const platformData = result.rows.map(row => {
+      const platform = row.platform;
+      const mtdRevenue = parseFloat(row.mtd_revenue) || 0;
+      const mtdGMV = parseFloat(row.mtd_gmv) || 0;
+      const target = platformTargets[platform] || 0;
       const pacing = calculatePacing(mtdRevenue, target);
+      const week = weekData[platform] || { weekRevenue: 0, weekGMV: 0 };
 
-      platformData[platform] = {
+      return {
         name: platform,
         mtdRevenue,
         mtdGMV,
         target,
         pacing,
-        weekRevenue,
-        weekGMV,
-        transactions: totalTransactions,
-        brands: platformBrands.length,
+        weekRevenue: week.weekRevenue,
+        weekGMV: week.weekGMV,
+        transactions: parseInt(row.total_transactions) || 0,
+        brands: parseInt(row.brand_count) || 0,
       };
     });
 
     // Calculate totals
-    const totalRevenue = Object.values(platformData).reduce((sum, p) => sum + p.mtdRevenue, 0);
-    const totalTarget = Object.values(platformData).reduce((sum, p) => sum + p.target, 0);
-    const totalGMV = Object.values(platformData).reduce((sum, p) => sum + p.mtdGMV, 0);
-    const totalTransactions = Object.values(platformData).reduce((sum, p) => sum + p.transactions, 0);
-    const totalBrands = brands.length;
+    const totalRevenue = platformData.reduce((sum, p) => sum + p.mtdRevenue, 0);
+    const totalTarget = Object.values(platformTargets).reduce((sum, t) => sum + t, 0);
+    const totalGMV = platformData.reduce((sum, p) => sum + p.mtdGMV, 0);
+    const totalTransactions = platformData.reduce((sum, p) => sum + p.transactions, 0);
+    const totalBrands = platformData.reduce((sum, p) => sum + p.brands, 0);
 
     res.json({
-      platforms: Object.values(platformData),
+      platforms: platformData,
       summary: {
         totalRevenue,
         totalTarget,
@@ -56,19 +95,30 @@ export const getOverview = (req, res) => {
     });
   } catch (error) {
     console.error('Dashboard overview error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 };
 
-export const getPlatformPerformance = (req, res) => {
+export const getPlatformPerformance = async (req, res) => {
   try {
-    const platformPerformance = Object.keys(platformTargets).map(platform => {
-      const platformTransactions = transactions.filter(t => t.platform === platform);
-      const platformBrands = brands.filter(b => b.platform === platform);
+    const result = await pool.query(`
+      SELECT 
+        platform,
+        SUM(revenue) as mtd_revenue,
+        SUM(gmv) as mtd_gmv,
+        SUM(transactions) as total_transactions,
+        COUNT(DISTINCT brand) as brand_count
+      FROM revenue_data
+      WHERE EXTRACT(MONTH FROM date) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      GROUP BY platform
+    `);
 
-      const mtdRevenue = platformTransactions.reduce((sum, t) => sum + t.revenue, 0);
-      const mtdGMV = platformTransactions.reduce((sum, t) => sum + t.gmv, 0);
-      const target = platformTargets[platform];
+    const platformPerformance = result.rows.map(row => {
+      const platform = row.platform;
+      const mtdRevenue = parseFloat(row.mtd_revenue) || 0;
+      const mtdGMV = parseFloat(row.mtd_gmv) || 0;
+      const target = platformTargets[platform] || 0;
       const pacing = calculatePacing(mtdRevenue, target);
 
       return {
@@ -77,41 +127,51 @@ export const getPlatformPerformance = (req, res) => {
         mtdGMV,
         target,
         pacing,
-        brands: platformBrands.length,
-        transactions: platformTransactions.length,
+        brands: parseInt(row.brand_count) || 0,
+        transactions: parseInt(row.total_transactions) || 0,
       };
     });
 
     res.json(platformPerformance);
   } catch (error) {
     console.error('Platform performance error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 };
 
-export const getBrandsByPlatform = (req, res) => {
+export const getBrandsByPlatform = async (req, res) => {
   try {
     const { platform } = req.params;
 
-    const platformBrands = brands.filter(b => b.platform === platform);
-    const brandDetails = platformBrands.map(brand => {
-      const brandTransactions = transactions.filter(t => t.brandId === brand.id);
+    const result = await pool.query(`
+      SELECT 
+        brand as name,
+        SUM(revenue) as revenue,
+        SUM(gmv) as gmv,
+        SUM(transactions) as transactions
+      FROM revenue_data
+      WHERE platform = $1
+        AND EXTRACT(MONTH FROM date) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      GROUP BY brand
+      ORDER BY revenue DESC
+    `, [platform]);
 
-      const revenue = brandTransactions.reduce((sum, t) => sum + t.revenue, 0);
-      const gmv = brandTransactions.reduce((sum, t) => sum + t.gmv, 0);
-      const quantity = brandTransactions.reduce((sum, t) => sum + t.quantity, 0);
+    const platformTarget = platformTargets[platform] || 0;
+    const brandCount = result.rows.length;
 
-      // Mock pacing calculation for brands
-      const brandTarget = platformTargets[platform] / platformBrands.length;
+    const brandDetails = result.rows.map(row => {
+      const revenue = parseFloat(row.revenue) || 0;
+      const brandTarget = brandCount > 0 ? platformTarget / brandCount : 0;
       const pacing = calculatePacing(revenue, brandTarget);
 
       return {
-        name: brand.name,
+        name: row.name,
         revenue,
-        gmv,
-        transactions: quantity,
+        gmv: parseFloat(row.gmv) || 0,
+        transactions: parseInt(row.transactions) || 0,
         pacing,
-        category: brand.category,
+        category: 'General', // TODO: Add category to database
       };
     });
 
@@ -121,6 +181,6 @@ export const getBrandsByPlatform = (req, res) => {
     });
   } catch (error) {
     console.error('Brands by platform error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 };
