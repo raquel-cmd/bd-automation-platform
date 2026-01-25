@@ -7,6 +7,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 // Platform metrics from CSV uploads
@@ -57,4 +58,104 @@ model FlatFeeAllocation {
 
   @@unique([partnerName, weekStart, weekEnd], name: "partner_week_unique")
   @@map("flat_fee_allocations")
+}
+
+// ===========================================
+// VACATION PLANNING AGENT MODELS
+// ===========================================
+
+// Main vacation plan
+model VacationPlan {
+  id              Int       @id @default(autoincrement())
+  name            String    // e.g., "Summer 2026 Hawaii Trip"
+  description     String?
+  startDate       String    @map("start_date")   // ISO date string
+  endDate         String    @map("end_date")     // ISO date string
+  travelers       Int       @default(1)          // Number of travelers
+  travelerNames   String?   @map("traveler_names") // JSON array of names
+  totalBudget     Float     @map("total_budget") @default(0)
+  currency        String    @default("USD")
+  status          String    @default("planning") // planning, booked, completed, cancelled
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  destinations    Destination[]
+  expenses        Expense[]
+  activities      Activity[]
+
+  @@map("vacation_plans")
+}
+
+// Destinations within a vacation plan
+model Destination {
+  id              Int       @id @default(autoincrement())
+  vacationId      Int       @map("vacation_id")
+  name            String    // e.g., "Honolulu, Hawaii"
+  country         String?
+  arrivalDate     String?   @map("arrival_date")  // ISO date string
+  departureDate   String?   @map("departure_date")
+  accommodation   String?   // Hotel/Airbnb name
+  accommodationAddress String? @map("accommodation_address")
+  accommodationCost Float?  @map("accommodation_cost")
+  transportMode   String?   @map("transport_mode") // flight, car, train, etc.
+  transportCost   Float?    @map("transport_cost")
+  notes           String?
+  orderIndex      Int       @default(0) @map("order_index") // Order in itinerary
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  vacation        VacationPlan @relation(fields: [vacationId], references: [id], onDelete: Cascade)
+  activities      Activity[]
+
+  @@map("destinations")
+}
+
+// Expenses for budget tracking
+model Expense {
+  id              Int       @id @default(autoincrement())
+  vacationId      Int       @map("vacation_id")
+  category        String    // flights, accommodation, food, activities, transport, shopping, other
+  name            String    // e.g., "Round-trip flights to Hawaii"
+  description     String?
+  estimatedCost   Float     @map("estimated_cost") @default(0)
+  actualCost      Float?    @map("actual_cost")
+  isPaid          Boolean   @default(false) @map("is_paid")
+  paidDate        String?   @map("paid_date") // ISO date string
+  vendor          String?   // e.g., "United Airlines"
+  confirmationNum String?   @map("confirmation_num")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  vacation        VacationPlan @relation(fields: [vacationId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
+}
+
+// Activities and things to do
+model Activity {
+  id              Int       @id @default(autoincrement())
+  vacationId      Int       @map("vacation_id")
+  destinationId   Int?      @map("destination_id")
+  name            String    // e.g., "Snorkeling at Hanauma Bay"
+  description     String?
+  date            String?   // ISO date string
+  startTime       String?   @map("start_time") // e.g., "09:00"
+  endTime         String?   @map("end_time")
+  location        String?
+  estimatedCost   Float?    @map("estimated_cost")
+  actualCost      Float?    @map("actual_cost")
+  isBooked        Boolean   @default(false) @map("is_booked")
+  bookingRef      String?   @map("booking_ref")
+  priority        String    @default("medium") // must-do, high, medium, low
+  category        String?   // sightseeing, adventure, relaxation, dining, culture, etc.
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  vacation        VacationPlan @relation(fields: [vacationId], references: [id], onDelete: Cascade)
+  destination     Destination? @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+
+  @@map("activities")
 }

@@ -10,6 +10,7 @@ import brandsRoutes from './routes/brands.js';
 import transactionsRoutes from './routes/transactions.js';
 import insightsRoutes from './routes/insights.js';
 import uploadRoutes from './routes/upload.js';
+import vacationRoutes from './routes/vacations.js';
 
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -49,6 +50,7 @@ app.use('/api/brands', authenticateToken, brandsRoutes);
 app.use('/api/transactions', authenticateToken, transactionsRoutes);
 app.use('/api/insights', authenticateToken, insightsRoutes);
 app.use('/api', authenticateToken, uploadRoutes);
+app.use('/api/vacations', authenticateToken, vacationRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -79,6 +81,19 @@ app.get('/', (req, res) => {
         topBrands: 'GET /api/insights/top-brands',
         topProducts: 'GET /api/insights/top-products',
         overview: 'GET /api/insights/overview',
+      },
+      vacations: {
+        all: 'GET /api/vacations',
+        byId: 'GET /api/vacations/:id',
+        create: 'POST /api/vacations',
+        update: 'PUT /api/vacations/:id',
+        delete: 'DELETE /api/vacations/:id',
+        destinations: 'POST/PUT/DELETE /api/vacations/:id/destinations',
+        expenses: 'POST/PUT/DELETE /api/vacations/:id/expenses',
+        activities: 'GET/POST/PUT/DELETE /api/vacations/:id/activities',
+        budget: 'GET /api/vacations/:id/budget',
+        itinerary: 'GET /api/vacations/:id/itinerary',
+        checklist: 'GET /api/vacations/:id/checklist',
       },
     },
   });
