@@ -14,9 +14,6 @@ import uploadRoutes from './routes/upload.js';
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
 
-// Import database
-import { initializeDatabase } from './config/database.js';
-
 // Load environment variables
 dotenv.config();
 
@@ -105,7 +102,7 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║  BD Automation Platform API                               ║
@@ -114,13 +111,7 @@ app.listen(PORT, async () => {
 ║  Health check: http://localhost:${PORT}/health              ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
-
-  // Initialize database
-  try {
-    await initializeDatabase();
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
-  }
+  console.log('✓ Using Prisma ORM for database access');
 });
 
 export default app;

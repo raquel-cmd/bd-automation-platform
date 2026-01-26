@@ -1,10 +1,9 @@
 import fs from 'fs';
 import csv from 'csv-parser';
-import pool from '../config/database.js';
+import prisma from '../config/prisma.js';
 
 // Upload CSV file and process data
 export async function uploadCSV(req, res) {
-    const client = await pool.connect();
     let uploadId = null;
 
     try {
@@ -21,18 +20,17 @@ export async function uploadCSV(req, res) {
         const filePath = req.file.path;
 
         // Create upload history record
-        const uploadResult = await client.query(
-            `INSERT INTO upload_history (filename, platform, status) 
-       VALUES ($1, $2, $3) 
-       RETURNING id`,
-            [filename, platform, 'processing']
-        );
-        uploadId = uploadResult.rows[0].id;
+        const uploadRecord = await prisma.uploadHistory.create({
+            data: {
+                filename,
+                platform,
+                status: 'processing',
+            },
+        });
+        uploadId = uploadRecord.id;
 
-        // Parse CSV and insert data
+        // Parse CSV and collect records
         const records = [];
-        let recordCount = 0;
-        let errorMessage = null;
 
         await new Promise((resolve, reject) => {
             fs.createReadStream(filePath)
@@ -60,7 +58,7 @@ export async function uploadCSV(req, res) {
 
                         records.push({
                             platform,
-                            date: date.toISOString().split('T')[0],
+                            date,
                             brand: row.Brand.trim(),
                             revenue,
                             gmv,
@@ -74,59 +72,58 @@ export async function uploadCSV(req, res) {
                 .on('error', (error) => reject(error));
         });
 
-        // Insert records into database using transaction
-        await client.query('BEGIN');
+        // Insert records into database using Prisma
+        let recordCount = 0;
 
-        try {
-            for (const record of records) {
-                await client.query(
-                    `INSERT INTO revenue_data (platform, date, brand, revenue, gmv, transactions)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (platform, date, brand) 
-           DO UPDATE SET 
-             revenue = EXCLUDED.revenue,
-             gmv = EXCLUDED.gmv,
-             transactions = EXCLUDED.transactions,
-             updated_at = CURRENT_TIMESTAMP`,
-                    [record.platform, record.date, record.brand, record.revenue, record.gmv, record.transactions]
-                );
-                recordCount++;
-            }
-
-            await client.query('COMMIT');
-
-            // Update upload history with success
-            await client.query(
-                `UPDATE upload_history 
-         SET status = $1, records_processed = $2 
-         WHERE id = $3`,
-                ['success', recordCount, uploadId]
-            );
-
-            // Delete temporary file
-            fs.unlinkSync(filePath);
-
-            res.json({
-                success: true,
-                message: `Successfully uploaded ${filename} - ${recordCount} records processed`,
-                recordsProcessed: recordCount,
-                uploadId,
+        for (const record of records) {
+            await prisma.revenueData.upsert({
+                where: {
+                    platform_date_brand: {
+                        platform: record.platform,
+                        date: record.date,
+                        brand: record.brand,
+                    },
+                },
+                update: {
+                    revenue: record.revenue,
+                    gmv: record.gmv,
+                    transactions: record.transactions,
+                },
+                create: record,
             });
-        } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
+            recordCount++;
         }
+
+        // Update upload history with success
+        await prisma.uploadHistory.update({
+            where: { id: uploadId },
+            data: {
+                status: 'success',
+                recordsProcessed: recordCount,
+            },
+        });
+
+        // Delete temporary file
+        fs.unlinkSync(filePath);
+
+        res.json({
+            success: true,
+            message: `Successfully uploaded ${filename} - ${recordCount} records processed`,
+            recordsProcessed: recordCount,
+            uploadId,
+        });
     } catch (error) {
         console.error('Upload error:', error);
 
         // Update upload history with error
         if (uploadId) {
-            await client.query(
-                `UPDATE upload_history 
-         SET status = $1, error_message = $2 
-         WHERE id = $3`,
-                ['error', error.message, uploadId]
-            );
+            await prisma.uploadHistory.update({
+                where: { id: uploadId },
+                data: {
+                    status: 'error',
+                    errorMessage: error.message,
+                },
+            });
         }
 
         // Clean up file if it exists
@@ -138,23 +135,22 @@ export async function uploadCSV(req, res) {
             error: 'Upload failed',
             message: error.message,
         });
-    } finally {
-        client.release();
     }
 }
 
 // Get upload history
 export async function getUploadHistory(req, res) {
     try {
-        const result = await pool.query(
-            `SELECT * FROM upload_history 
-       ORDER BY upload_date DESC 
-       LIMIT 50`
-        );
+        const history = await prisma.uploadHistory.findMany({
+            orderBy: {
+                uploadDate: 'desc',
+            },
+            take: 50,
+        });
 
         res.json({
             success: true,
-            history: result.rows,
+            history,
         });
     } catch (error) {
         console.error('Error fetching upload history:', error);
