@@ -48,7 +48,7 @@ app.use('/api/dashboard', authenticateToken, dashboardRoutes);
 app.use('/api/brands', authenticateToken, brandsRoutes);
 app.use('/api/transactions', authenticateToken, transactionsRoutes);
 app.use('/api/insights', authenticateToken, insightsRoutes);
-app.use('/api/admin', authenticateToken, uploadRoutes);
+app.use('/api/admin', uploadRoutes); // No auth required for admin uploads
 
 // Root endpoint
 app.get('/', (req, res) => {
