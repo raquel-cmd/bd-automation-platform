@@ -147,8 +147,15 @@ export const admin = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Upload failed');
+      let errorMessage = 'Upload failed';
+      try {
+        const error = await response.json();
+        errorMessage = error.message || error.error || errorMessage;
+      } catch (e) {
+        // If response is not JSON (e.g. 413 Payload Too Large from nginx/proxy)
+        errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();

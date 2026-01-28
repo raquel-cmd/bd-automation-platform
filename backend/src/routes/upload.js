@@ -5,10 +5,17 @@ import { uploadCSV, getUploadHistory } from '../controllers/uploadController.js'
 
 const router = express.Router();
 
+import fs from 'fs';
+
 // Configure multer for file uploads
+const uploadDir = 'uploads/';
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+        cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
