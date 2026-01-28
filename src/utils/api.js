@@ -4,7 +4,7 @@
  * Falls back to http://localhost:5002 in development
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://bd-automation-platform.onrender.com';
 
 // Debug logging - remove after testing
 console.log('🔧 API Configuration:', {
