@@ -199,3 +199,37 @@ export const skimlinks = {
     return fetchAPI(`/api/skimlinks/merchants?month=${encodeURIComponent(month)}`);
   },
 };
+
+/**
+ * AI Agent
+ */
+export const agent = {
+  getStatus: async () => {
+    return fetchAPI('/api/agent/status');
+  },
+
+  chat: async (message) => {
+    return fetchAPI('/api/agent/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+  },
+
+  conversation: async (messages) => {
+    return fetchAPI('/api/agent/conversation', {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    });
+  },
+
+  getInsights: async () => {
+    return fetchAPI('/api/agent/insights');
+  },
+
+  analyze: async (analysisType) => {
+    return fetchAPI('/api/agent/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ analysisType }),
+    });
+  },
+};

@@ -10,6 +10,7 @@ import brandsRoutes from './routes/brands.js';
 import transactionsRoutes from './routes/transactions.js';
 import insightsRoutes from './routes/insights.js';
 import uploadRoutes from './routes/upload.js';
+import agentRoutes from './routes/agent.js';
 
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -49,6 +50,7 @@ app.use('/api/brands', authenticateToken, brandsRoutes);
 app.use('/api/transactions', authenticateToken, transactionsRoutes);
 app.use('/api/insights', authenticateToken, insightsRoutes);
 app.use('/api', authenticateToken, uploadRoutes);
+app.use('/api/agent', authenticateToken, agentRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -79,6 +81,13 @@ app.get('/', (req, res) => {
         topBrands: 'GET /api/insights/top-brands',
         topProducts: 'GET /api/insights/top-products',
         overview: 'GET /api/insights/overview',
+      },
+      agent: {
+        status: 'GET /api/agent/status',
+        chat: 'POST /api/agent/chat',
+        conversation: 'POST /api/agent/conversation',
+        insights: 'GET /api/agent/insights',
+        analyze: 'POST /api/agent/analyze',
       },
     },
   });

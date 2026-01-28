@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Agent from './pages/Agent';
 import Insights from './pages/Insights';
 import Admin from './pages/Admin';
 import Proposals from './pages/Proposals';
@@ -22,6 +23,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/agent"
+            element={
+              <PrivateRoute>
+                <Agent />
               </PrivateRoute>
             }
           />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Settings, FileText, LogOut } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Settings, FileText, LogOut, Bot } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Layout({ children }) {
@@ -10,6 +10,7 @@ export default function Layout({ children }) {
 
   const navigation = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'AI Agent', path: '/agent', icon: Bot },
     { name: 'Insights', path: '/insights', icon: TrendingUp },
     { name: 'Proposals', path: '/proposals', icon: FileText },
     { name: 'Admin', path: '/admin', icon: Settings },
