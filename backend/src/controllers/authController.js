@@ -1,5 +1,15 @@
-import { users } from '../data/mockData.js';
 import { generateToken } from '../middleware/auth.js';
+
+// Hardcoded users for now (migrating to DB later)
+const users = [
+  {
+    id: 1,
+    username: 'admin',
+    password: 'password', // In production, this should be hashed
+    email: 'admin@bestreviews.com',
+    role: 'admin',
+  },
+];
 
 export const login = (req, res) => {
   try {
