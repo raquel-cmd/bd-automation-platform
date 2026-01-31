@@ -342,7 +342,7 @@ export default function Dashboard() {
 
   // Get weeks for display (reversed - newest first)
   const weeks = getWeekRange(weekRangeStart, weekRangeEnd);
- const displayWeeks = weeks;
+  const displayWeeks = weeks;
   return (
     <Layout>
       <div className="space-y-6">
@@ -484,43 +484,29 @@ export default function Dashboard() {
                                 {platformWeekly.platform}
                               </td>
                               {reversedWeeks.map((revenue, idx) => {
-                                const previousRevenue = idx > 0 ? reversedWeeks[idx - 1] : null;
+                                const previousRevenue = idx < reversedWeeks.length - 1 ? reversedWeeks[idx + 1] : null;
                                 const wowGrowth = previousRevenue
                                   ? calculateWoWGrowth(revenue, previousRevenue)
                                   : null;
 
                                 return (
-                                  <tr key={subPlatform.name} className="bg-gray-50 hover:bg-gray-100">
-                                    <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 pl-12">
-                                      ↳ {subPlatform.name}
-                                    </td>
-                                    {subWeeks.map((revenue, idx) => {
-                                      const previousRevenue = idx < subWeeks.length - 1 ? subWeeks[idx + 1] : null;
-                                      const wowGrowth = previousRevenue
-                                        ? calculateWoWGrowth(revenue, previousRevenue)
-                                        : null;
-
-                                      return (
-                                        <td key={idx} className="px-6 py-3 whitespace-nowrap text-right text-sm">
-                                          <div className="font-medium text-gray-700">
-                                            {formatCurrency(revenue)}
-                                          </div>
-                                          {wowGrowth !== null && (
-                                            <div
-                                              className={`text-xs font-medium ${wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                                }`}
-                                            >
-                                              {wowGrowth >= 0 ? '+' : ''}
-                                              {formatPercentage(wowGrowth, 1)}
-                                            </div>
-                                          )}
-                                        </td>
-                                      );
-                                    })}
-                                  </tr>
+                                  <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
+                                    <div className="font-semibold text-gray-900">
+                                      {formatCurrency(revenue)}
+                                    </div>
+                                    {wowGrowth !== null && (
+                                      <div
+                                        className={`text-xs font-medium ${wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                          }`}
+                                      >
+                                        {wowGrowth >= 0 ? '+' : ''}
+                                        {formatPercentage(wowGrowth, 1)}
+                                      </div>
+                                    )}
+                                  </td>
                                 );
                               })}
-                            </React.Fragment>
+                            </tr>
                           );
                         })}
 
@@ -555,9 +541,8 @@ export default function Dashboard() {
                                     </div>
                                     {wowGrowth !== null && (
                                       <div
-                                        className={`text-xs font-medium ${
-                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                        }`}
+                                        className={`text-xs font-medium ${wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                          }`}
                                       >
                                         {wowGrowth >= 0 ? '+' : ''}
                                         {formatPercentage(wowGrowth, 1)}
@@ -588,9 +573,8 @@ export default function Dashboard() {
                                         </div>
                                         {wowGrowth !== null && (
                                           <div
-                                            className={`text-xs font-medium ${
-                                              wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                            }`}
+                                            className={`text-xs font-medium ${wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                              }`}
                                           >
                                             {wowGrowth >= 0 ? '+' : ''}
                                             {formatPercentage(wowGrowth, 1)}
@@ -640,9 +624,8 @@ export default function Dashboard() {
                                       </div>
                                       {wowGrowth !== null && (
                                         <div
-                                          className={`text-xs font-medium ${
-                                            wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                          }`}
+                                          className={`text-xs font-medium ${wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                            }`}
                                         >
                                           {wowGrowth >= 0 ? '+' : ''}
                                           {formatPercentage(wowGrowth, 1)}
@@ -673,9 +656,8 @@ export default function Dashboard() {
                                           </div>
                                           {wowGrowth !== null && (
                                             <div
-                                              className={`text-xs font-medium ${
-                                                wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                              }`}
+                                              className={`text-xs font-medium ${wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                                }`}
                                             >
                                               {wowGrowth >= 0 ? '+' : ''}
                                               {formatPercentage(wowGrowth, 1)}
@@ -750,107 +732,8 @@ export default function Dashboard() {
                             </div>
 
                             {/* Brands Table */}
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                      Brand
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Weekly Revenue
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      MTD Revenue
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      % to Target
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      Pacing
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                      MTD GMV
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                  {topBrands.map((brand, idx) => (
-                                    <tr key={`${platform.name}-${brand.brand}-${idx}`} className="hover:bg-gray-50">
-                                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {brand.brand}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {formatCurrency(brand.weeklyRevenue)}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
-                                        {formatCurrency(brand.mtdRevenue)}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                                        {brand.pctToTarget.toFixed(1)}%
-                                      </td>
-                                      <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPacingColor(brand.pacingPct)}`}>
-                                        {brand.pacingPct.toFixed(1)}%
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                        {brand.mtdGmv > 0 ? formatCurrency(brand.mtdGmv) : '—'}
-                                      </td>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="bg-white divide-y divide-gray-200">
-                                    {topBrands.map((brand, idx) => {
-                                      const today = new Date();
-                                      const campaignEnd = brand.campaignEndDate ? new Date(brand.campaignEndDate) : new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                                      const daysLeft = Math.max(0, Math.ceil((campaignEnd - today) / (1000 * 60 * 60 * 24)));
-                                      const daysAccounted = getDaysAccounted();
-
-                                      // GMV-based pacing: (GMV to date ÷ Days Accounted) × Days left ÷ Target GMV × 100
-                                      const gmvPacing = brand.targetGMV && daysAccounted > 0
-                                        ? ((brand.gmvToDate / daysAccounted) * daysLeft / brand.targetGMV) * 100
-                                        : null;
-
-                                      const percentToTarget = brand.targetGMV ? (brand.gmvToDate / brand.targetGMV) * 100 : null;
-
-                                      return (
-                                        <tr key={`${platform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
-                                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {brand.name}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
-                                            {formatCurrency(brand.revenue)}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                            {brand.contractRevenue ? formatCurrency(brand.contractRevenue) : '—'}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                            {brand.gmvToDate ? formatCurrency(brand.gmvToDate) : '—'}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                            {brand.targetGMV ? formatCurrency(brand.targetGMV) : '—'}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                            {percentToTarget !== null ? (
-                                              <div className={percentToTarget >= 100 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                                                {formatPercentage(percentToTarget, 1)}
-                                              </div>
-                                            ) : '—'}
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
-                                            {daysLeft} days
-                                          </td>
-                                          <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${gmvPacing ? getPacingColor(gmvPacing) : 'text-gray-400'}`}>
-                                            {gmvPacing !== null ? formatPercentage(gmvPacing, 1) : '—'}
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-
-                            {/* Main Platform Brands Table (for non-flatfee) */}
-                            {platform.category !== 'flatfee' && topBrands.length > 0 && (
+                            {/* Brands Table */}
+                            {topBrands.length > 0 && (
                               <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                   <thead className="bg-gray-50">

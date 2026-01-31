@@ -59,3 +59,18 @@ model FlatFeeAllocation {
   @@unique([partnerName, weekStart, weekEnd], name: "partner_week_unique")
   @@map("flat_fee_allocations")
 }
+
+// Upload history tracking
+model UploadHistory {
+  id                Int      @id @default(autoincrement())
+  filename          String
+  platform          String
+  status            String   // 'processing', 'success', 'error'
+  recordsProcessed  Int?     @map("records_processed")
+  errorMessage      String?  @map("error_message")
+  uploadDate        DateTime @default(now()) @map("upload_date")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("upload_history")
+}
