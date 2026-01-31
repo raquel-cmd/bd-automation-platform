@@ -80,35 +80,22 @@ export async function uploadCSV(req, res) {
                 where: {
                     platform_date_brand_unique: {
                         platformKey: record.platform,
-                        date: record.date.toISOString().split('T')[0], // Ensure string date
+                        date: record.date.toISOString().split('T')[0],
                         brand: record.brand,
                     },
                 },
                 update: {
-                    weeklyRevenue: record.revenue, // Mapping Revenue -> weeklyRevenue
-                    mtdGmv: record.gmv,         // Mapping GMV -> mtdGmv
-                    mtdRevenue: 0,              // Need to set required fields? Schema says Int/Float. No, default?
-                    // Schema: daily/weekly metrics.
-                    // PlatformMetric:
-                    // weeklyRevenue Float @map("weekly_revenue")
-                    // mtdRevenue Float @map("mtd_revenue")
-                    // mtdGmv Float @map("mtd_gmv")
-                    // targetGmv Float @map("target_gmv") (Required?)
-                    // Let's check schema again. Lines 13-28.
-                    // All Floats seem required (no ?). totalContractRevenue is optional (Float?).
-                    // So we must provide mtdRevenue and targetGmv.
-
-                    // We'll calculate mtdRevenue as just the daily revenue for now (logic fix in dataLoaders needed later if we want real MTD)
-                    // Or set to 0.
-                    mtdRevenue: record.revenue, // Provisional
-                    targetGmv: 0, // Default
+                    weeklyRevenue: record.revenue, // Map CSV Revenue to weeklyRevenue
+                    mtdGmv: record.gmv,         // Map CSV GMV to mtdGmv
+                    mtdRevenue: record.revenue, // Provisional: storing revenue in MTD field too for aggregations
+                    targetGmv: 0,
                 },
                 create: {
                     platformKey: record.platform,
                     date: record.date.toISOString().split('T')[0],
                     brand: record.brand,
                     weeklyRevenue: record.revenue,
-                    mtdRevenue: record.revenue, // Provisional
+                    mtdRevenue: record.revenue,
                     mtdGmv: record.gmv,
                     targetGmv: 0,
                     totalContractRevenue: 0,
