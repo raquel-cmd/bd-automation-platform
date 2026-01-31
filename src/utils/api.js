@@ -138,7 +138,7 @@ export const admin = {
   uploadCSV: async (formData) => {
     const token = localStorage.getItem('token');
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/upload`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -162,7 +162,7 @@ export const admin = {
   },
 
   getUploadHistory: async () => {
-    return fetchAPI('/api/admin/history');
+    return fetchAPI('/api/history');
   },
 };
 
