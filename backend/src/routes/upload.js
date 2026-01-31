@@ -10,8 +10,10 @@ const router = express.Router();
 import multer from 'multer';
 import { uploadCSV, getUploadHistory } from '../controllers/uploadController.js';
 
+import os from 'os';
+
 // Configure multer for file uploads
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: os.tmpdir() });
 
 // File upload route (multipart/form-data)
 router.post('/upload', upload.single('file'), uploadCSV);

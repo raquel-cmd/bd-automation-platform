@@ -146,31 +146,44 @@ export const admin = {
       body: formData,
     });
 
-    if (!response.ok) {
-      // Handle authentication errors
-      if (response.status === 401 || response.status === 403) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-        throw new Error('Session expired. Please login again.');
-      }
+  });
 
-      let errorMessage = 'Upload failed';
-      try {
-        const error = await response.json();
-        errorMessage = error.message || error.error || errorMessage;
-      } catch (e) {
-        // If response is not JSON (e.g. 413 Payload Too Large from nginx/proxy)
-        errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
-      }
-      throw new Error(errorMessage);
+if (!response.ok) {
+  if (response.status === 401 || response.status === 403) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
+
+  const text = await response.text();
+  let errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
+
+  try {
+    if (text) {
+      const error = JSON.parse(text);
+      errorMessage = error.message || error.error || errorMessage;
     }
+  } catch (e) {
+    console.error('Failed to parse error response:', text);
+    // Use text directly if it's short, otherwise truncate
+    if (text.length < 200) errorMessage += ` - ${text}`;
+  }
+  throw new Error(errorMessage);
+}
 
-    return response.json();
+// Success case
+const text = await response.text();
+try {
+  return text ? JSON.parse(text) : { success: true };
+} catch (e) {
+  console.error('Failed to parse success response:', text);
+  throw new Error('Server returned invalid JSON response');
+}
   },
 
-  getUploadHistory: async () => {
-    return fetchAPI('/api/history');
-  },
+getUploadHistory: async () => {
+  return fetchAPI('/api/history');
+},
 };
 
 /**
