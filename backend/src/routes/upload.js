@@ -7,6 +7,17 @@ import express from 'express';
 import prisma from '../db/client.js';
 
 const router = express.Router();
+import multer from 'multer';
+import { uploadCSV, getUploadHistory } from '../controllers/uploadController.js';
+
+// Configure multer for file uploads
+const upload = multer({ dest: 'uploads/' });
+
+// File upload route (multipart/form-data)
+router.post('/upload', upload.single('file'), uploadCSV);
+
+// History route
+router.get('/history', getUploadHistory);
 
 /**
  * @typedef {Object} PlatformCsvRow
