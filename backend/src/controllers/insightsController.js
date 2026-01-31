@@ -1,9 +1,43 @@
-import { brands, transactions, topProducts, revenueTrends } from '../data/mockData.js';
+import prisma from '../config/prisma.js';
 
-export const getTrends = (req, res) => {
+export const getTrends = async (req, res) => {
   try {
+    // Generate monthly revenue trends for the last 6 months
+    const today = new Date();
+    const trends = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1; // 1-indexed for string formatting/Prisma? No, stored as ISO string 'YYYY-MM-DD'
+
+      const monthStr = `${year}-${month.toString().padStart(2, '0')}`;
+      const nextMonthStr = month === 12
+        ? `${year + 1}-01`
+        : `${year}-${(month + 1).toString().padStart(2, '0')}`;
+
+      // Sum revenue for this month
+      const aggregate = await prisma.platformMetric.aggregate({
+        where: {
+          date: {
+            gte: `${monthStr}-01`,
+            lt: `${nextMonthStr}-01`,
+          },
+        },
+        _sum: {
+          weeklyRevenue: true,
+        },
+      });
+
+      trends.push({
+        month: date.toLocaleString('default', { month: 'short' }),
+        revenue: aggregate._sum.weeklyRevenue || 0,
+        // Mock growth or calculate if previous month exists
+      });
+    }
+
     res.json({
-      trends: revenueTrends,
+      trends,
     });
   } catch (error) {
     console.error('Get trends error:', error);
@@ -11,31 +45,30 @@ export const getTrends = (req, res) => {
   }
 };
 
-export const getTopBrands = (req, res) => {
+export const getTopBrands = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    // Calculate revenue per brand
-    const brandRevenue = brands.map(brand => {
-      const brandTransactions = transactions.filter(t => t.brandId === brand.id);
-      const revenue = brandTransactions.reduce((sum, t) => sum + t.revenue, 0);
-
-      // Mock growth calculation (random for demo)
-      const growth = (Math.random() * 30 - 5).toFixed(1);
-
-      return {
-        name: brand.name,
-        platform: brand.platform,
-        category: brand.category,
-        revenue,
-        growth: parseFloat(growth),
-      };
+    const brandAggregates = await prisma.platformMetric.groupBy({
+      by: ['brand', 'platformKey'],
+      _sum: {
+        weeklyRevenue: true,
+      },
+      orderBy: {
+        _sum: {
+          weeklyRevenue: 'desc',
+        },
+      },
+      take: parseInt(limit),
     });
 
-    // Sort by revenue and limit
-    const topBrands = brandRevenue
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, parseInt(limit));
+    const topBrands = brandAggregates.map(b => ({
+      name: b.brand,
+      platform: b.platformKey,
+      category: 'Unknown', // Not stored in metric
+      revenue: b._sum.weeklyRevenue || 0,
+      growth: 0, // Requires historical comparison
+    }));
 
     res.json({
       total: topBrands.length,
@@ -49,13 +82,10 @@ export const getTopBrands = (req, res) => {
 
 export const getTopProducts = (req, res) => {
   try {
-    const { limit = 10 } = req.query;
-
-    const limitedProducts = topProducts.slice(0, parseInt(limit));
-
+    // Product level data not currently supported in schema
     res.json({
-      total: limitedProducts.length,
-      products: limitedProducts,
+      total: 0,
+      products: [],
     });
   } catch (error) {
     console.error('Get top products error:', error);
@@ -63,38 +93,55 @@ export const getTopProducts = (req, res) => {
   }
 };
 
-export const getInsightsOverview = (req, res) => {
+export const getInsightsOverview = async (req, res) => {
   try {
-    // Calculate key metrics
-    const totalRevenue = transactions.reduce((sum, t) => sum + t.revenue, 0);
-    const totalGMV = transactions.reduce((sum, t) => sum + t.gmv, 0);
-    const totalTransactions = transactions.reduce((sum, t) => sum + t.quantity, 0);
+    // Total Revenue (All time or needed range? Assuming all time for overview)
+    const totalAgg = await prisma.platformMetric.aggregate({
+      _sum: {
+        weeklyRevenue: true,
+        mtdGmv: true,
+      },
+    });
+
+    const totalRevenue = totalAgg._sum.weeklyRevenue || 0;
+    const totalGMV = totalAgg._sum.mtdGmv || 0;
+    const totalTransactions = 0; // Not tracked
+
+    // Active brands count
+    const brands = await prisma.platformMetric.groupBy({
+      by: ['brand'],
+    });
+    const activeBrands = brands.length;
 
     // Average revenue per brand
-    const brandRevenues = brands.map(brand => {
-      const brandTransactions = transactions.filter(t => t.brandId === brand.id);
-      return brandTransactions.reduce((sum, t) => sum + t.revenue, 0);
-    });
-    const avgRevenuePerBrand = brandRevenues.reduce((sum, r) => sum + r, 0) / brands.length;
+    const avgRevenuePerBrand = activeBrands > 0 ? totalRevenue / activeBrands : 0;
 
-    // Top platform by revenue
-    const platformRevenues = {};
-    transactions.forEach(t => {
-      platformRevenues[t.platform] = (platformRevenues[t.platform] || 0) + t.revenue;
+    // Top Platform
+    const platformAgg = await prisma.platformMetric.groupBy({
+      by: ['platformKey'],
+      _sum: {
+        weeklyRevenue: true,
+      },
+      orderBy: {
+        _sum: {
+          weeklyRevenue: 'desc',
+        },
+      },
+      take: 1,
     });
-    const topPlatform = Object.entries(platformRevenues)
-      .sort((a, b) => b[1] - a[1])[0];
+
+    const topPlatform = platformAgg.length > 0 ? {
+      name: platformAgg[0].platformKey,
+      revenue: platformAgg[0]._sum.weeklyRevenue || 0,
+    } : { name: 'None', revenue: 0 };
 
     res.json({
       totalRevenue,
       totalGMV,
       totalTransactions,
       avgRevenuePerBrand,
-      topPlatform: {
-        name: topPlatform[0],
-        revenue: topPlatform[1],
-      },
-      activeBrands: brands.length,
+      topPlatform,
+      activeBrands,
     });
   } catch (error) {
     console.error('Get insights overview error:', error);

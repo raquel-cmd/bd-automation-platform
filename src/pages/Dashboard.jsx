@@ -462,7 +462,7 @@ export default function Dashboard() {
                         className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         <div>{week.label}</div>
-                        {idx > 0 && <div className="text-xs text-gray-400">WoW %</div>}
+                        {idx < getWeekRange(weekRangeStart, weekRangeEnd).length - 1 && <div className="text-xs text-gray-400">WoW %</div>}
                       </th>
                     ))}
                   </tr>
@@ -490,24 +490,37 @@ export default function Dashboard() {
                                   : null;
 
                                 return (
-                                  <td key={idx} className="px-6 py-4 whitespace-nowrap text-right">
-                                    <div className="font-semibold text-gray-900">
-                                      {formatCurrency(revenue)}
-                                    </div>
-                                    {wowGrowth !== null && (
-                                      <div
-                                        className={`text-xs font-medium ${
-                                          wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
-                                        }`}
-                                      >
-                                        {wowGrowth >= 0 ? '+' : ''}
-                                        {formatPercentage(wowGrowth, 1)}
-                                      </div>
-                                    )}
-                                  </td>
+                                  <tr key={subPlatform.name} className="bg-gray-50 hover:bg-gray-100">
+                                    <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 pl-12">
+                                      ↳ {subPlatform.name}
+                                    </td>
+                                    {subWeeks.map((revenue, idx) => {
+                                      const previousRevenue = idx < subWeeks.length - 1 ? subWeeks[idx + 1] : null;
+                                      const wowGrowth = previousRevenue
+                                        ? calculateWoWGrowth(revenue, previousRevenue)
+                                        : null;
+
+                                      return (
+                                        <td key={idx} className="px-6 py-3 whitespace-nowrap text-right text-sm">
+                                          <div className="font-medium text-gray-700">
+                                            {formatCurrency(revenue)}
+                                          </div>
+                                          {wowGrowth !== null && (
+                                            <div
+                                              className={`text-xs font-medium ${wowGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                                                }`}
+                                            >
+                                              {wowGrowth >= 0 ? '+' : ''}
+                                              {formatPercentage(wowGrowth, 1)}
+                                            </div>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
                                 );
                               })}
-                            </tr>
+                            </React.Fragment>
                           );
                         })}
 
@@ -714,13 +727,26 @@ export default function Dashboard() {
                     <div className="space-y-6">
                       {categoryPlatforms.map((platform) => {
                         const topBrands = getTopBrandsForPlatform(platform);
-                        if (topBrands.length === 0) return null;
+                        const isExpandable = platform.subPlatforms && platform.subPlatforms.length > 0;
+                        const isExpanded = expandedPlatforms[platform.name];
+
+                        if (topBrands.length === 0 && !isExpandable) return null;
 
                         return (
                           <div key={platform.name} className="border border-gray-200 rounded-lg overflow-hidden">
                             {/* Platform Header */}
                             <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                              <h5 className="font-semibold text-gray-900">{platform.name}</h5>
+                              {isExpandable ? (
+                                <button
+                                  onClick={() => togglePlatformExpansion(platform.name)}
+                                  className="flex items-center gap-2 font-semibold text-gray-900 hover:text-blue-600"
+                                >
+                                  <span>{isExpanded ? '▼' : '▶'}</span>
+                                  {platform.name}
+                                </button>
+                              ) : (
+                                <h5 className="font-semibold text-gray-900">{platform.name}</h5>
+                              )}
                             </div>
 
                             {/* Brands Table */}
@@ -770,10 +796,152 @@ export default function Dashboard() {
                                         {brand.mtdGmv > 0 ? formatCurrency(brand.mtdGmv) : '—'}
                                       </td>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {topBrands.map((brand, idx) => {
+                                      const today = new Date();
+                                      const campaignEnd = brand.campaignEndDate ? new Date(brand.campaignEndDate) : new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                                      const daysLeft = Math.max(0, Math.ceil((campaignEnd - today) / (1000 * 60 * 60 * 24)));
+                                      const daysAccounted = getDaysAccounted();
+
+                                      // GMV-based pacing: (GMV to date ÷ Days Accounted) × Days left ÷ Target GMV × 100
+                                      const gmvPacing = brand.targetGMV && daysAccounted > 0
+                                        ? ((brand.gmvToDate / daysAccounted) * daysLeft / brand.targetGMV) * 100
+                                        : null;
+
+                                      const percentToTarget = brand.targetGMV ? (brand.gmvToDate / brand.targetGMV) * 100 : null;
+
+                                      return (
+                                        <tr key={`${platform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
+                                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {brand.name}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                                            {formatCurrency(brand.revenue)}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {brand.contractRevenue ? formatCurrency(brand.contractRevenue) : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {brand.gmvToDate ? formatCurrency(brand.gmvToDate) : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {brand.targetGMV ? formatCurrency(brand.targetGMV) : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {percentToTarget !== null ? (
+                                              <div className={percentToTarget >= 100 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                                {formatPercentage(percentToTarget, 1)}
+                                              </div>
+                                            ) : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                            {daysLeft} days
+                                          </td>
+                                          <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${gmvPacing ? getPacingColor(gmvPacing) : 'text-gray-400'}`}>
+                                            {gmvPacing !== null ? formatPercentage(gmvPacing, 1) : '—'}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {/* Main Platform Brands Table (for non-flatfee) */}
+                            {platform.category !== 'flatfee' && topBrands.length > 0 && (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-gray-50">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Brand
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        Weekly Revenue
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        MTD Revenue
+                                      </th>
+                                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                        MTD GMV
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {topBrands.map((brand, idx) => (
+                                      <tr key={`${platform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                          {brand.name}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                          {brand.weekRevenue ? formatCurrency(brand.weekRevenue) : '—'}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                                          {formatCurrency(brand.revenue)}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                          {brand.gmv > 0 ? formatCurrency(brand.gmv) : '—'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {/* Sub-platforms */}
+                            {isExpanded && platform.subPlatforms && platform.subPlatforms.map((subPlatform) => {
+                              const subBrands = getTopBrandsForPlatform(subPlatform);
+                              if (subBrands.length === 0) return null;
+
+                              return (
+                                <div key={subPlatform.name} className="border-t border-gray-200">
+                                  <div className="bg-gray-100 px-4 py-2">
+                                    <h6 className="text-sm font-semibold text-gray-700">↳ {subPlatform.name}</h6>
+                                  </div>
+                                  <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                      <thead className="bg-gray-50">
+                                        <tr>
+                                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Brand
+                                          </th>
+                                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                            Weekly Revenue
+                                          </th>
+                                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                            MTD Revenue
+                                          </th>
+                                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                            MTD GMV
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="bg-white divide-y divide-gray-200">
+                                        {subBrands.map((brand, idx) => (
+                                          <tr key={`${subPlatform.name}-${brand.name}-${idx}`} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">
+                                              {brand.name}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                              {brand.weekRevenue ? formatCurrency(brand.weekRevenue) : '—'}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-700">
+                                              {formatCurrency(brand.revenue)}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">
+                                              {brand.gmv > 0 ? formatCurrency(brand.gmv) : '—'}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}

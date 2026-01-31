@@ -21,8 +21,13 @@ const app = express();
 const PORT = process.env.PORT || 5002;
 
 // CORS configuration - allow requests from Vercel frontend
+// CORS configuration - allow requests from Vercel frontend
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || '*',
+  origin: [
+    'https://bd-automation-platform.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -111,6 +116,7 @@ app.listen(PORT, () => {
 ║  Health check: http://localhost:${PORT}/health              ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+  console.log('✓ Using Prisma ORM for database access');
 });
 
 export default app;

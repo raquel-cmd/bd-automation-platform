@@ -103,6 +103,9 @@ export const getWeeklyRevenue = async (req, res) => {
 export const getBrandsByPlatform = async (req, res) => {
   try {
     const { platform } = req.params;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     const { platforms } = await getPlatformPerformanceData();
     const platformData = platforms.find(p => p.name === platform);

@@ -13,49 +13,11 @@ export default function Admin() {
 
   const fetchUploadHistory = async () => {
     try {
-      // Mock data for demonstration
-      const mockHistory = [
-        {
-          id: 1,
-          filename: 'skimlinks_november_2025.csv',
-          platform: 'Skimlinks',
-          uploadDate: new Date('2025-11-15'),
-          status: 'success',
-          recordsProcessed: 237,
-          uploadedBy: 'admin',
-        },
-        {
-          id: 2,
-          filename: 'creator_connections_november_2025.csv',
-          platform: 'Creator Connections',
-          uploadDate: new Date('2025-11-14'),
-          status: 'success',
-          recordsProcessed: 412,
-          uploadedBy: 'admin',
-        },
-        {
-          id: 3,
-          filename: 'flat_fee_november_2025.csv',
-          platform: 'Flat Fee',
-          uploadDate: new Date('2025-11-13'),
-          status: 'success',
-          recordsProcessed: 8,
-          uploadedBy: 'admin',
-        },
-        {
-          id: 4,
-          filename: 'skimlinks_october_2025.csv',
-          platform: 'Skimlinks',
-          uploadDate: new Date('2025-10-31'),
-          status: 'success',
-          recordsProcessed: 285,
-          uploadedBy: 'admin',
-        },
-      ];
-
-      setUploadHistory(mockHistory);
+      const response = await admin.getUploadHistory();
+      setUploadHistory(response.history || []);
     } catch (error) {
       console.error('Error fetching upload history:', error);
+      setUploadHistory([]);
     }
   };
 

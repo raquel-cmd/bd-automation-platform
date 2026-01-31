@@ -4,7 +4,7 @@
  * Falls back to http://localhost:5002 in development
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://bd-automation-platform.onrender.com';
 
 // Debug logging - remove after testing
 console.log('🔧 API Configuration:', {
@@ -77,7 +77,7 @@ async function fetchAPI(endpoint, options = {}) {
  */
 export const auth = {
   login: async (username, password) => {
-    return fetchAPI('/api/login', {
+    return fetchAPI('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
@@ -135,11 +135,7 @@ export const insights = {
  * Admin functions
  */
 export const admin = {
-  uploadCSV: async (file, platform) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('platform', platform);
-
+  uploadCSV: async (formData) => {
     const token = localStorage.getItem('token');
 
     const response = await fetch(`${API_BASE_URL}/api/admin/upload`, {
@@ -151,14 +147,22 @@ export const admin = {
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      let errorMessage = 'Upload failed';
+      try {
+        const error = await response.json();
+        errorMessage = error.message || error.error || errorMessage;
+      } catch (e) {
+        // If response is not JSON (e.g. 413 Payload Too Large from nginx/proxy)
+        errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
   },
 
   getUploadHistory: async () => {
-    return fetchAPI('/api/admin/upload-history');
+    return fetchAPI('/api/admin/history');
   },
 };
 
