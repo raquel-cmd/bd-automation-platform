@@ -1,7 +1,7 @@
+import 'dotenv/config'; // Load env vars immediately
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -14,8 +14,7 @@ import uploadRoutes from './routes/upload.js';
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
 
-// Load environment variables
-dotenv.config();
+// Environment variables loaded via import 'dotenv/config';
 
 const app = express();
 const PORT = process.env.PORT || 5002;

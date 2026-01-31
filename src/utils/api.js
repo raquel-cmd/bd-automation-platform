@@ -147,6 +147,13 @@ export const admin = {
     });
 
     if (!response.ok) {
+      // Handle authentication errors
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        throw new Error('Session expired. Please login again.');
+      }
+
       let errorMessage = 'Upload failed';
       try {
         const error = await response.json();
