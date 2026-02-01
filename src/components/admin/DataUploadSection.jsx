@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Database, AlertCircle } from 'lucide-react';
 import CsvUploader from './CsvUploader';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://bd-automation-platform-1.onrender.com';
+// Hardcoded to Render Backend to prevent Vercel 405 errors (Environment variable issues)
+const API_BASE_URL = 'https://bd-automation-platform-1.onrender.com';
 
 /**
  * Type definitions for CSV rows
