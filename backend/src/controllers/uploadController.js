@@ -73,35 +73,43 @@ export async function uploadCSV(req, res) {
         });
 
         // Insert records into database using Prisma
+        // Insert records into database using Prisma with transactions
         let recordCount = 0;
+        const BATCH_SIZE = 50;
 
-        for (const record of records) {
-            await prisma.platformMetric.upsert({
-                where: {
-                    platform_date_brand_unique: {
-                        platformKey: record.platform,
-                        date: record.date.toISOString().split('T')[0],
-                        brand: record.brand,
-                    },
-                },
-                update: {
-                    weeklyRevenue: record.revenue, // Map CSV Revenue to weeklyRevenue
-                    mtdGmv: record.gmv,         // Map CSV GMV to mtdGmv
-                    mtdRevenue: record.revenue, // Provisional: storing revenue in MTD field too for aggregations
-                    targetGmv: 0,
-                },
-                create: {
-                    platformKey: record.platform,
-                    date: record.date.toISOString().split('T')[0],
-                    brand: record.brand,
-                    weeklyRevenue: record.revenue,
-                    mtdRevenue: record.revenue,
-                    mtdGmv: record.gmv,
-                    targetGmv: 0,
-                    totalContractRevenue: 0,
-                },
-            });
-            recordCount++;
+        for (let i = 0; i < records.length; i += BATCH_SIZE) {
+            const batch = records.slice(i, i + BATCH_SIZE);
+            await prisma.$transaction(
+                batch.map(record =>
+                    prisma.platformMetric.upsert({
+                        where: {
+                            platform_date_brand_unique: {
+                                platformKey: record.platform,
+                                date: record.date.toISOString().split('T')[0],
+                                brand: record.brand,
+                            },
+                        },
+                        update: {
+                            weeklyRevenue: record.revenue,
+                            mtdGmv: record.gmv,
+                            mtdRevenue: record.revenue,
+                            targetGmv: 0,
+                        },
+                        create: {
+                            platformKey: record.platform,
+                            date: record.date.toISOString().split('T')[0],
+                            brand: record.brand,
+                            weeklyRevenue: record.revenue,
+                            mtdRevenue: record.revenue,
+                            mtdGmv: record.gmv,
+                            targetGmv: 0,
+                            totalContractRevenue: 0,
+                        },
+                    })
+                )
+            );
+            recordCount += batch.length;
+            console.log(`Processed batch ${i / BATCH_SIZE + 1}: ${recordCount} records`);
         }
 
         // Update upload history with success

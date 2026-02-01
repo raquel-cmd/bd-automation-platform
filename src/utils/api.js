@@ -146,44 +146,41 @@ export const admin = {
       body: formData,
     });
 
-  });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        throw new Error('Session expired. Please login again.');
+      }
 
-if (!response.ok) {
-  if (response.status === 401 || response.status === 403) {
-    localStorage.removeItem('token');
-    window.location.href = '/login';
-    throw new Error('Session expired. Please login again.');
-  }
+      const text = await response.text();
+      let errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
 
-  const text = await response.text();
-  let errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
-
-  try {
-    if (text) {
-      const error = JSON.parse(text);
-      errorMessage = error.message || error.error || errorMessage;
+      try {
+        if (text) {
+          const error = JSON.parse(text);
+          errorMessage = error.message || error.error || errorMessage;
+        }
+      } catch (e) {
+        console.error('Failed to parse error response:', text);
+        if (text.length < 200) errorMessage += ` - ${text}`;
+      }
+      throw new Error(errorMessage);
     }
-  } catch (e) {
-    console.error('Failed to parse error response:', text);
-    // Use text directly if it's short, otherwise truncate
-    if (text.length < 200) errorMessage += ` - ${text}`;
-  }
-  throw new Error(errorMessage);
-}
 
-// Success case
-const text = await response.text();
-try {
-  return text ? JSON.parse(text) : { success: true };
-} catch (e) {
-  console.error('Failed to parse success response:', text);
-  throw new Error('Server returned invalid JSON response');
-}
+    // Success case
+    const text = await response.text();
+    try {
+      return text ? JSON.parse(text) : { success: true };
+    } catch (e) {
+      console.error('Failed to parse success response:', text);
+      throw new Error('Server returned invalid JSON response');
+    }
   },
 
-getUploadHistory: async () => {
-  return fetchAPI('/api/history');
-},
+  getUploadHistory: async () => {
+    return fetchAPI('/api/history');
+  },
 };
 
 /**
