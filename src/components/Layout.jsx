@@ -28,9 +28,12 @@ export default function Layout({ children }) {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">
-                  BestReviews BD Platform
-                </h1>
+                <div className="flex flex-col">
+                  <h1 className="text-xl font-bold text-gray-900">
+                    BestReviews BD Platform
+                  </h1>
+                  <span className="text-xs text-gray-500">v2.1 (Batch Upload Fix)</span>
+                </div>
               </div>
               <div className="hidden sm:ml-8 sm:flex sm:space-x-4">
                 {navigation.map((item) => {
@@ -40,11 +43,10 @@ export default function Layout({ children }) {
                     <Link
                       key={item.name}
                       to={item.path}
-                      className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        isActive
+                      className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
                           ? 'text-blue-600 bg-blue-50'
                           : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <Icon className="w-4 h-4 mr-2" />
                       {item.name}
