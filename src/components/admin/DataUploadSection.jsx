@@ -64,12 +64,29 @@ export default function DataUploadSection() {
         }),
       });
 
+      const text = await response.text();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Upload failed');
+        let errorMessage = 'Upload failed';
+        try {
+          if (text) {
+            const error = JSON.parse(text);
+            errorMessage = error.message || error.error || errorMessage;
+          } else {
+            errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
+          }
+        } catch (e) {
+          errorMessage = `Upload failed: ${response.status} ${response.statusText} (${text.substring(0, 100)})`;
+        }
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = text ? JSON.parse(text) : { success: true };
+      } catch (e) {
+        throw new Error('Server returned invalid JSON response');
+      }
 
       setGlobalStatus({
         type: 'success',
@@ -113,12 +130,29 @@ export default function DataUploadSection() {
         }),
       });
 
+      const text = await response.text();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Upload failed');
+        let errorMessage = 'Upload failed';
+        try {
+          if (text) {
+            const error = JSON.parse(text);
+            errorMessage = error.message || error.error || errorMessage;
+          } else {
+            errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
+          }
+        } catch (e) {
+          errorMessage = `Upload failed: ${response.status} ${response.statusText} (${text.substring(0, 100)})`;
+        }
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = text ? JSON.parse(text) : { success: true };
+      } catch (e) {
+        throw new Error('Server returned invalid JSON response');
+      }
 
       setGlobalStatus({
         type: 'success',
