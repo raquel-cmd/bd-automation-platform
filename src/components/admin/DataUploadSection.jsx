@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Database, AlertCircle } from 'lucide-react';
 import CsvUploader from './CsvUploader';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://bd-automation-platform-1.onrender.com';
+
 /**
  * Type definitions for CSV rows
  *
@@ -53,7 +55,7 @@ export default function DataUploadSection() {
         message: `Uploading ${rows.length} records for ${platformKey}...`,
       });
 
-      const response = await fetch('/api/upload-platform-data', {
+      const response = await fetch(`${API_BASE_URL}/api/upload-platform-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +122,7 @@ export default function DataUploadSection() {
         message: `Processing ${rows.length} flat fee contracts...`,
       });
 
-      const response = await fetch('/api/upload-flat-fees', {
+      const response = await fetch(`${API_BASE_URL}/api/upload-flat-fees`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
